@@ -1,6 +1,6 @@
 import setuptools
 
-
+CDK_VERSION = '1.89.0'
 with open("README.md") as fp:
     long_description = fp.read()
 
@@ -19,7 +19,9 @@ setuptools.setup(
     packages=setuptools.find_packages(where="nitro_wallet"),
 
     install_requires=[
-        "aws-cdk.core==1.76.0",
+        "aws-cdk.core=={}".format(CDK_VERSION),
+        "aws-cdk.aws-ec2=={}".format(CDK_VERSION),
+        "aws-cdk.aws-kms=={}".format(CDK_VERSION)
     ],
 
     python_requires=">=3.6",
