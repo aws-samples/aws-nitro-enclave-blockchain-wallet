@@ -9,6 +9,6 @@ app = core.App()
 env = core.Environment(account=os.environ['DEV_ACCOUNT'],
                        region=os.environ['DEV_REGION'])
 
-NitroWalletStack(app, "nitro-wallet")
+NitroWalletStack(app, "nitro-wallet", env=env)
 
 app.synth()

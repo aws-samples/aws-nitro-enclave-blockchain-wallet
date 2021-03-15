@@ -9,3 +9,6 @@ __pycache__
 .cdk.staging
 cdk.out
 workbook.txt
+.idea
+.venv
+cdk.context.json

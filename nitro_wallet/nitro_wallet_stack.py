@@ -18,9 +18,9 @@ class NitroWalletStack(core.Stack):
     def __init__(self, scope: core.Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # key_alias = core.CfnParameter(self, "keyalias", type="String",
-        #                               description="The alias of the KMS key supposed to be "
-        #                                           "used as a ethereum private key")
+        key_alias = core.CfnParameter(self, "keyid", type="String",
+                                      description="The KMS key id to be "
+                                                  "used as a ethereum private key")
 
         # VPC
         vpc = aws_ec2.Vpc(self, 'VPC',
@@ -53,18 +53,18 @@ class NitroWalletStack(core.Stack):
                             role_name='testrole')
         role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonEC2RoleforSSM"))
 
-        # todo add key id to resource
         kms_sign_policy = aws_iam.PolicyStatement(actions=["kms:Sign"],
-                                                     resources=["*"],
-                                                     effect=aws_iam.Effect.ALLOW
-                                                     )
+                                                  resources=["arn:aws:kms:{}:{}:key/{}".format(kwargs['env'].region,
+                                                                                               kwargs['env'].account,
+                                                                                               key_alias.to_string())],
+                                                  effect=aws_iam.Effect.ALLOW
+                                                  )
 
         role.add_to_principal_policy(kms_sign_policy)
 
         ec2_iam_instance_profile = aws_iam.CfnInstanceProfile(self, 'InstanceProfile_EC2',
                                                               roles=[role.role_name],
                                                               instance_profile_name="InstanceProfile_EC2")
-
 
         network_interface = aws_ec2.CfnInstance.NetworkInterfaceProperty(
             device_index='0',

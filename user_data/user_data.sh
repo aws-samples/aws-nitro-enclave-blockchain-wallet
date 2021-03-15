@@ -15,6 +15,10 @@ yum install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel htop git
 cd /home/ec2-user
 git clone https://github.com/aws/aws-nitro-enclaves-sdk-c.git
 
+cat << EOF > /etc/nitro_enclaves/allocator.yaml
+memory_mib: 2048
+EOF
+
 cat << EOF >> build_enclave.sh
 #!/usr/bin/bash
 
@@ -32,4 +36,5 @@ chmod +x build_enclave.sh
 chown ec2-user:ec2-user aws-nitro-enclaves-sdk-c
 chown ec2-user:ec2-user build_enclave.sh
 
-
+# TODO provide python signing enclave
+# TODO add enclave build step
