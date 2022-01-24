@@ -370,12 +370,17 @@ EOF
 fi
 
 yum update -y
+
 systemctl start crond
 systemctl enable crond
+
 amazon-linux-extras install docker
+
 systemctl start docker
 systemctl enable docker
+
 amazon-linux-extras enable aws-nitro-enclaves-cli
+
 yum install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel htop git
 
 usermod -aG docker ec2-user
@@ -391,6 +396,7 @@ sed -r "s/^(\s*$MEM_KEY\s*:\s*).*/\1$DEFAULT_MEM/" -i "$ALLOCATOR_YAML"
 sed -r "s/^(\s*$CPU_KEY\s*:\s*).*/\1$DEFAULT_CPU/" -i "$ALLOCATOR_YAML"
 
 sleep 20
+
 systemctl start nitro-enclaves-allocator.service
 systemctl enable nitro-enclaves-allocator.service
 
@@ -424,64 +430,6 @@ EOF
   cd ..
 fi
 
-if [[ ! -d ./app ]]; then
-  mkdir app
-  cd ./app
-  cat <<'EOF' >>app.py
-import sys
-import socket
-import requests
-import json
-
-def get_aws_session_token():
-    """
-    Get the AWS credential from EC2 instance metadata
-    """
-    r = requests.get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
-    instance_profile_name = r.text
-
-    r = requests.get("http://169.254.169.254/latest/meta-data/iam/security-credentials/%s" % instance_profile_name)
-    response = r.json()
-
-    credential = {
-        'access_key_id' : response['AccessKeyId'],
-        'secret_access_key' : response['SecretAccessKey'],
-        'token' : response['Token']
-    }
-
-    return credential
-
-def main():
-    # Get EC2 instance metedata
-    credential = get_aws_session_token()
-
-    # Create a vsock socket object
-    s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
-
-    # Get CID from command line parameter
-    cid = int(sys.argv[1])
-
-    # The port should match the server running in enclave
-    port = 5000
-
-    # Connect to the server
-    s.connect((cid, port))
-
-    # Send AWS credential to the server running in enclave
-    s.send(str.encode(json.dumps(credential)))
-
-    # receive data from the server
-    print(s.recv(1024).decode())
-
-    # close the connection
-    s.close()
-
-if __name__ == '__main__':
-    main()
-
-EOF
-  cd ..
-fi
 
 if [[ ! -d ./app/server ]]; then
   mkdir -p ./app/server
