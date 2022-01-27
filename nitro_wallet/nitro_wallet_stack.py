@@ -2,21 +2,20 @@ from aws_cdk import (
     core,
     aws_ec2,
     aws_iam,
-    aws_ecr_assets
+    aws_ecr_assets,
+    aws_secretsmanager,
+    aws_lambda
 )
 
 
-# https://www.sentiatechblog.com/acm-for-nitro-enclaves-how-secure-are-they
-# https://github.com/aws/aws-nitro-enclaves-sdk-c/blob/main/docs/kmstool.md
 class NitroWalletStack(core.Stack):
 
     def __init__(self, scope: core.Construct, construct_id: str, **kwargs) -> None:
+        # todo dev/prod missing
         params = kwargs.pop('params')
         super().__init__(scope, construct_id, **kwargs)
 
-        key_alias = core.CfnParameter(self, "keyid", type="String",
-                                      description="The KMS key id to be "
-                                                  "used as a ethereum private key")
+        secrets_manager = aws_secretsmanager.Secret(self, "SecretsManager")
 
         signing_server_image = aws_ecr_assets.DockerImageAsset(self, "EthereumSigningServerImage",
                                                                directory="./application/server"
@@ -31,6 +30,8 @@ class NitroWalletStack(core.Stack):
                                                 ],
                           enable_dns_support=True,
                           enable_dns_hostnames=True)
+
+        # todo network load balancer
 
         kms_endpoint = aws_ec2.InterfaceVpcEndpoint(
             self, "KMSEndpoint",
@@ -72,6 +73,10 @@ class NitroWalletStack(core.Stack):
             allow_all_outbound=True,
             description="Private SG for NitroWallet EC2 instance")
 
+        # all members of the sg can access each others https ports (443)
+        private_sg.add_ingress_rule(private_sg,
+                                    aws_ec2.Port.tcp(443))
+
         # AMI
         amzn_linux = aws_ec2.MachineImage.latest_amazon_linux(
             generation=aws_ec2.AmazonLinuxGeneration.AMAZON_LINUX_2
@@ -83,25 +88,9 @@ class NitroWalletStack(core.Stack):
                             )
         role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonEC2RoleforSSM"))
 
-        kms_sign_policy = aws_iam.PolicyStatement(actions=["kms:Sign"],
-                                                  resources=["arn:aws:kms:{}:{}:key/{}".format(self.region,
-                                                                                               self.account,
-                                                                                               key_alias.to_string())],
-                                                  effect=aws_iam.Effect.ALLOW
-                                                  )
-
-        role.add_to_principal_policy(kms_sign_policy)
-
         ec2_iam_instance_profile = aws_iam.CfnInstanceProfile(self, 'InstanceProfile_EC2',
                                                               roles=[role.role_name],
                                                               instance_profile_name="InstanceProfile_EC2")
-
-        # network_interface = aws_ec2.CfnInstance.NetworkInterfaceProperty(
-        #     device_index='0',
-        #     associate_public_ip_address=True,
-        #     subnet_id=subnet.subnet_id,
-        #     group_set=[public_sg.security_group_id],
-        # )
 
         network_interface = aws_ec2.CfnInstance.NetworkInterfaceProperty(
             device_index='0',
@@ -118,7 +107,9 @@ class NitroWalletStack(core.Stack):
                                                                           encrypted=True
                                                                       ))
 
-        # pull and build efi image
+        # todo secrets name -> enclave
+        #  docker build
+        #  request parameter
         mappings = {"__DEV_MODE__": params["deployment"],
                     "__SIGNING_SERVER_IMAGE_URI__": signing_server_image.image_uri}
 
@@ -136,10 +127,27 @@ class NitroWalletStack(core.Stack):
                                        )
 
         signing_server_image.repository.grant_pull(role)
+        secrets_manager.grant_read(role)
 
-        core.CfnOutput(
-            self,
-            'EC2 Instance ID',
-            value=instance.ref,
-            description="Nitro EC2 Instance ID"
-        )
+        invoke_lambda = aws_lambda.Function(self, "NitroInvokeLambda",
+                                            code=aws_lambda.Code.from_asset(path="lambda_/NitroInvoke"),
+                                            handler="lambda_function.lambda_handler",
+                                            runtime=aws_lambda.Runtime.PYTHON_3_8,
+                                            timeout=core.Duration.minutes(2),
+                                            memory_size=256,
+                                            environment={"LOG_LEVEL": "DEBUG",
+                                                         "NITRO_INSTANCE_PRIVATE_DNS": instance.attr_private_dns_name},
+                                            vpc=vpc,
+                                            vpc_subnets=aws_ec2.SubnetType.PRIVATE,
+                                            security_group=private_sg
+                                            )
+
+        # todo output pcr0 value as well from enclave
+        core.CfnOutput(self, "EC2 Instance Role ARN",
+                       value=role.role_arn,
+                       description="EC2 Instance Role ARN")
+
+        core.CfnOutput(self, "EC2 Instance ID",
+                       value=instance.ref,
+                       description="Nitro EC2 Instance ID"
+                       )

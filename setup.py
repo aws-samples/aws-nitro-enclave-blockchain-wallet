@@ -4,7 +4,6 @@ CDK_VERSION = '1.122.0'
 with open("README.md") as fp:
     long_description = fp.read()
 
-
 setuptools.setup(
     name="nitro_wallet",
     version="0.0.1",
@@ -23,7 +22,9 @@ setuptools.setup(
         "aws-cdk.aws-ec2=={}".format(CDK_VERSION),
         "aws-cdk.aws-kms=={}".format(CDK_VERSION),
         "aws-cdk.aws-ecr-assets=={}".format(CDK_VERSION),
-        "aws-cdk.aws-secretsmanager=={}".format(CDK_VERSION)
+        "aws-cdk.aws-kms=={}".format(CDK_VERSION),
+        "aws-cdk.aws-secretsmanager=={}".format(CDK_VERSION),
+        "aws-cdk.aws-lambda=={}".format(CDK_VERSION)
     ],
 
     python_requires=">=3.6",

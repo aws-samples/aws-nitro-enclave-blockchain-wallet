@@ -4,6 +4,9 @@ RUN yum install python3 net-tools -y
 
 WORKDIR /app
 
+COPY ./kms/kmstool_enclave_cli ./
+COPY ./kms/libnsm.so /usr/lib64/
+
 COPY requirements.txt ./
 RUN pip3 install -r /app/requirements.txt
 

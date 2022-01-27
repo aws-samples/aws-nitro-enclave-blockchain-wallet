@@ -376,7 +376,7 @@ amazon-linux-extras install docker
 systemctl start docker
 systemctl enable docker
 amazon-linux-extras enable aws-nitro-enclaves-cli
-yum install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel htop git
+yum install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel htop git mod_ssl
 
 usermod -aG docker ec2-user
 usermod -aG ne ec2-user
@@ -395,34 +395,7 @@ systemctl start nitro-enclaves-allocator.service
 systemctl enable nitro-enclaves-allocator.service
 
 cd /home/ec2-user
-
-if [[ ! -d ./dev ]]; then
-  mkdir dev
-  cd ./dev
-  git clone https://github.com/aws/aws-nitro-enclaves-sdk-c.git
-  cd ..
-  chown -R ec2-user:ec2-user ./dev
-fi
-
-if [[ ! -f ./dev/build_enclave.sh ]]; then
-  cd ./dev
-  cat <<EOF >>build_enclave.sh
-#!/usr/bin/bash
-
-set -x
-set -e
-
-cd aws-nitro-enclaves-sdk-c
-docker build --target kmstool-instance -t kmstool-instance -f containers/Dockerfile.al2 .
-docker build --target kmstool-enclave -t kmstool-enclave -f containers/Dockerfile.al2 .
-nitro-cli build-enclave --docker-uri kmstool-enclave --output-file kmstool.eif
-
-EOF
-
-  chmod +x build_enclave.sh
-  chown ec2-user:ec2-user build_enclave.sh
-  cd ..
-fi
+mkdir dev
 
 if [[ ! -d ./app ]]; then
   mkdir app
@@ -480,6 +453,26 @@ if __name__ == '__main__':
     main()
 
 EOF
+
+  cat <<'EOF' >>http_server.py
+#!/usr/bin/env python3
+
+import http.server, ssl
+
+server_address = ('0.0.0.0', 443)
+httpd = http.server.HTTPServer(server_address, http.server.SimpleHTTPRequestHandler)
+httpd.socket = ssl.wrap_socket(httpd.socket,
+                               server_side=True,
+                               certfile='/etc/pki/tls/certs/localhost.crt',
+                               ssl_version=ssl.PROTOCOL_TLS)
+httpd.serve_forever()
+
+EOF
+  chmod +x http_server.py
+  cat <<'EOF' >>index.html
+  hello there
+EOF
+
   cd ..
 fi
 
@@ -509,3 +502,7 @@ EOF
 fi
 
 echo "@reboot ec2-user nitro-cli run-enclave --debug-mode --cpu-count 2 --memory 2500 --eif-path /home/ec2-user/app/server/signing_server.eif" >>/etc/crontab
+
+cd /etc/pki/tls/certs
+sudo ./make-dummy-cert localhost.crt
+#chmod  o+r /etc/pki/tls/certs/localhost.crt
