@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import os
 import ssl
@@ -20,7 +21,7 @@ _logger.setLevel(LOG_LEVEL)
 _logger.addHandler(handler)
 _logger.propagate = False
 
-client = boto3.client("kms")
+client_kms = boto3.client("kms")
 
 
 def lambda_handler(event, context):
@@ -43,7 +44,7 @@ def lambda_handler(event, context):
             _logger.fatal("encrypt request needs to include a keyid and plaintext")
 
         try:
-            response = client.encrypt(
+            response = client_kms.encrypt(
                 KeyId=key_id,
                 Plaintext=plaintext.encode()
             )
@@ -54,7 +55,7 @@ def lambda_handler(event, context):
 
         return response_b64
 
-    elif operation == "decrypt":
+    elif operation == "decrypt_kms":
 
         ciphertext = event.get("ciphertext")
 
@@ -62,7 +63,7 @@ def lambda_handler(event, context):
             _logger.fatal("encrypt request requires ciphertext")
 
         try:
-            response = client.decrypt(
+            response = client_kms.decrypt(
                 CiphertextBlob=base64.standard_b64decode(ciphertext)
             )
         except Exception as e:
@@ -73,8 +74,27 @@ def lambda_handler(event, context):
 
         return response_plain
 
-    elif operation == "enclave_decrypt":
-        pass
+    elif operation == "decrypt_enclave":
+
+        ciphertext = event.get("ciphertext")
+
+        if not ciphertext:
+            _logger.fatal("encrypt request requires ciphertext")
+
+        https_nitro_client = client.HTTPSConnection("{}:{}".format(nitro_instance_private_dns, 443),
+                                                    context=ssl_context)
+
+        try:
+            https_nitro_client.request("POST", "/",
+                                       body=json.dumps({"ciphertext": ciphertext}))
+            response = https_nitro_client.getresponse()
+        except Exception as e:
+            raise Exception("exception happened sending decryption request to Nitro Enclave: {}".format(e))
+
+        _logger.debug("response: {} {}".format(response.status, response.reason))
+        _logger.debug("response data: {}".format(response.read()))
+
+        return
 
     elif operation == "get":
         https_nitro_client = client.HTTPSConnection("{}:{}".format(nitro_instance_private_dns, 443),

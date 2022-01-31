@@ -403,18 +403,45 @@ if [[ ! -d ./app ]]; then
   cat <<'EOF' >>app.py
 import sys
 import socket
-import requests
 import json
+import ssl
+import logging
+from http import client
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class S(BaseHTTPRequestHandler):
+    def _set_response(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+
+    def do_POST(self):
+        content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
+        post_data = self.rfile.read(content_length) # <--- Gets the data itself
+        logging.info("POST request,\nPath: %s\nHeaders:\n%s\n\nBody:\n%s\n",
+                str(self.path), str(self.headers), post_data.decode('utf-8'))
+        payload = json.loads(post_data.decode('utf-8'))
+        call_enclave(16, 5000, payload)
+
+        self._set_response()
+        self.wfile.write("POST request for {}".format(self.path).encode('utf-8'))
 
 def get_aws_session_token():
     """
     Get the AWS credential from EC2 instance metadata
     """
-    r = requests.get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
-    instance_profile_name = r.text
 
-    r = requests.get("http://169.254.169.254/latest/meta-data/iam/security-credentials/%s" % instance_profile_name)
-    response = r.json()
+    http_ec2_client = client.HTTPConnection("169.254.169.254")
+    http_ec2_client.request("GET", "/latest/meta-data/iam/security-credentials/")
+    r = http_ec2_client.getresponse()
+
+    instance_profile_name = r.read().decode()
+
+    http_ec2_client = client.HTTPConnection("169.254.169.254)
+    http_ec2_client.request("GET", "/latest/meta-data/iam/security-credentials/{}".format(instance_profile_name))
+    r = http_ec2_client.getresponse()
+
+    response = json.loads(r.read())
 
     credential = {
         'access_key_id' : response['AccessKeyId'],
@@ -424,24 +451,27 @@ def get_aws_session_token():
 
     return credential
 
-def main():
+def call_enclave(cid, port, ciphertext):
     # Get EC2 instance metedata
-    credential = get_aws_session_token()
+    payload={}
+    payload["credential"] = get_aws_session_token()
+    payload["ciphertext"] = ciphertext
 
     # Create a vsock socket object
     s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
 
     # Get CID from command line parameter
-    cid = int(sys.argv[1])
+    # todo automate via external system call
+    # cid = int(sys.argv[1])
 
     # The port should match the server running in enclave
-    port = 5000
+    # port = 5000
 
     # Connect to the server
     s.connect((cid, port))
 
     # Send AWS credential to the server running in enclave
-    s.send(str.encode(json.dumps(credential)))
+    s.send(str.encode(json.dumps(payload)))
 
     # receive data from the server
     print(s.recv(1024).decode())
@@ -449,33 +479,27 @@ def main():
     # close the connection
     s.close()
 
-if __name__ == '__main__':
-    main()
 
-EOF
-
-  cat <<'EOF' >>http_server.py
-#!/usr/bin/env python3
-
-import http.server
-import ssl
-
-server_address = ('0.0.0.0', 443)
-httpd = http.server.HTTPServer(server_address, http.server.SimpleHTTPRequestHandler)
-httpd.socket = ssl.wrap_socket(httpd.socket,
+def run(server_class=HTTPServer, handler_class=S, port=443):
+    logging.basicConfig(level=logging.INFO)
+    server_address = ('0.0.0.0', port)
+    httpd = server_class(server_address, handler_class)
+    logging.info('Starting httpd...\n')
+    httpd.socket = ssl.wrap_socket(httpd.socket,
                                server_side=True,
                                certfile='/etc/pki/tls/certs/localhost.crt',
                                ssl_version=ssl.PROTOCOL_TLS)
-httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    httpd.server_close()
+    logging.info('Stopping httpd...\n')
+
+if __name__ == '__main__':
+    run()
 
 EOF
-  chmod +x http_server.py
-  cat <<'EOF' >>index.html
-  hello there
-EOF
-
-  cd ..
-fi
 
 if [[ ! -d ./app/server ]]; then
   mkdir -p ./app/server
