@@ -1,7 +1,8 @@
+import base64
 import json
 import socket
 import subprocess
-import base64
+
 import boto3
 
 
@@ -24,6 +25,9 @@ def kms_call(credential, ciphertext):
     )
 
     plaintext = proc.communicate()[0].decode()
+
+    # https://github.com/aws/aws-nitro-enclaves-sdk-c/tree/main/bin/kmstool-enclave-cli
+    # todo base64 encoded plaintext
 
     return plaintext
 

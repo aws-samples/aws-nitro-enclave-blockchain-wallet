@@ -21,6 +21,10 @@ class NitroWalletKMSStack(core.Stack):
                                                type="String",
                                                description="")
 
+        lambda_role_arn = core.CfnParameter(self, "LambdaRoleARN",
+                                            type="String",
+                                            description="")
+
         nitro_enclave_policy = aws_iam.PolicyDocument(
             statements=[aws_iam.PolicyStatement(
                 sid="Enable decrypt from enclave",
@@ -31,8 +35,19 @@ class NitroWalletKMSStack(core.Stack):
                     "StringEqualsIgnoreCase": {
                         "kms:RecipientAttestation:ImageSha384": enclave_image_pcr0.value_as_string
                     }}
-            )]
+            ),
+                aws_iam.PolicyStatement(
+                    sid="Enable encrypt from lambda",
+                    actions=["kms:*"],
+                    principals=[aws_iam.ArnPrincipal(lambda_role_arn.value_as_string)],
+                    resources=["*"]
+                )
+            ]
         )
 
         encryption_key = aws_kms.Key(self, "EncryptionKey",
                                      policy=nitro_enclave_policy)
+
+        core.CfnOutput(self, "KMS KeyID",
+                       value=encryption_key.key_id,
+                       description="KMS KeyID")

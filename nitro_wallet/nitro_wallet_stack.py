@@ -129,6 +129,7 @@ class NitroWalletStack(core.Stack):
         signing_server_image.repository.grant_pull(role)
         secrets_manager.grant_read(role)
 
+        # todo keyid needs to be passed on a per request basis
         invoke_lambda = aws_lambda.Function(self, "NitroInvokeLambda",
                                             code=aws_lambda.Code.from_asset(path="lambda_/NitroInvoke"),
                                             handler="lambda_function.lambda_handler",
@@ -151,3 +152,7 @@ class NitroWalletStack(core.Stack):
                        value=instance.ref,
                        description="Nitro EC2 Instance ID"
                        )
+
+        core.CfnOutput(self, "Lambda Execution Role ARN",
+                       value=invoke_lambda.role.role_arn,
+                       description="Lambda Execution Role ARN")

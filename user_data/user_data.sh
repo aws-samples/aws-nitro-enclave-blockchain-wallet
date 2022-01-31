@@ -457,7 +457,8 @@ EOF
   cat <<'EOF' >>http_server.py
 #!/usr/bin/env python3
 
-import http.server, ssl
+import http.server
+import ssl
 
 server_address = ('0.0.0.0', 443)
 httpd = http.server.HTTPServer(server_address, http.server.SimpleHTTPRequestHandler)
@@ -502,7 +503,6 @@ EOF
 fi
 
 echo "@reboot ec2-user nitro-cli run-enclave --debug-mode --cpu-count 2 --memory 2500 --eif-path /home/ec2-user/app/server/signing_server.eif" >>/etc/crontab
-
 cd /etc/pki/tls/certs
-sudo ./make-dummy-cert localhost.crt
-#chmod  o+r /etc/pki/tls/certs/localhost.crt
+./make-dummy-cert localhost.crt
+python3 /home/ec2-user/app/http_server.py
