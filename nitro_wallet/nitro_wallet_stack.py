@@ -17,8 +17,10 @@ class NitroWalletStack(core.Stack):
 
         secrets_manager = aws_secretsmanager.Secret(self, "SecretsManager")
 
+        # todo latest tag
+        # https://github.com/aws/aws-cdk/issues/2663#issuecomment-999335895
         signing_server_image = aws_ecr_assets.DockerImageAsset(self, "EthereumSigningServerImage",
-                                                               directory="./application/server"
+                                                               directory="./application/server",
                                                                )
 
         vpc = aws_ec2.Vpc(self, 'VPC',
@@ -32,6 +34,7 @@ class NitroWalletStack(core.Stack):
                           enable_dns_hostnames=True)
 
         # todo network load balancer
+        #  2 nitro instances
 
         kms_endpoint = aws_ec2.InterfaceVpcEndpoint(
             self, "KMSEndpoint",
