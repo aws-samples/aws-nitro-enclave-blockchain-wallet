@@ -4,7 +4,8 @@ from aws_cdk import (
     aws_iam,
     aws_ecr_assets,
     aws_secretsmanager,
-    aws_lambda
+    aws_lambda,
+    aws_autoscaling
 )
 
 
@@ -23,6 +24,10 @@ class NitroWalletStack(core.Stack):
                                                                directory="./application/server",
                                                                )
 
+        signing_enclave_image = aws_ecr_assets.DockerImageAsset(self, "EthereumSigningEnclaveImage",
+                                                                directory="./application/enclave",
+                                                                )
+
         vpc = aws_ec2.Vpc(self, 'VPC',
                           nat_gateways=1,
                           subnet_configuration=[aws_ec2.SubnetConfiguration(name='public',
@@ -32,9 +37,6 @@ class NitroWalletStack(core.Stack):
                                                 ],
                           enable_dns_support=True,
                           enable_dns_hostnames=True)
-
-        # todo network load balancer
-        #  2 nitro instances
 
         kms_endpoint = aws_ec2.InterfaceVpcEndpoint(
             self, "KMSEndpoint",
@@ -111,10 +113,9 @@ class NitroWalletStack(core.Stack):
                                                                       ))
 
         # todo secrets name -> enclave
-        #  docker build
-        #  request parameter
         mappings = {"__DEV_MODE__": params["deployment"],
-                    "__SIGNING_SERVER_IMAGE_URI__": signing_server_image.image_uri}
+                    "__SIGNING_SERVER_IMAGE_URI__":  signing_server_image.image_uri,
+                    "__SIGNING_ENCLAVE_IMAGE_URI__": signing_enclave_image.image_uri}
 
         with open("./user_data/user_data.sh") as f:
             user_data_raw = core.Fn.sub(f.read(), mappings)
@@ -129,8 +130,23 @@ class NitroWalletStack(core.Stack):
                                        iam_instance_profile=ec2_iam_instance_profile.instance_profile_name
                                        )
 
+        signing_enclave_image.repository.grant_pull(role)
         signing_server_image.repository.grant_pull(role)
         secrets_manager.grant_read(role)
+
+        # todo nlb
+        # todo asg (ec2 nitro) -> EC2 Launch template -> nitro option
+        #  2 nitro instances
+        # nitro_autoscaling = aws_autoscaling.AutoScalingGroup(self, "NitroASG",
+        #                                                      instance_type=aws_ec2.InstanceType("m5a.xlarge"),
+        #
+        #                                                      https://github.com/aws-samples/aws-cdk-examples/blob/master/python/application-load-balancer/app.py)
+
+
+        # nitro_autoscaling = aws_autoscaling.CfnAutoScalingGroup(self, "NitroASG",
+        #                                                         instance_type=aws_ec2.InstanceType("m5a.xlarge"),
+        #                                                         launch_template=
+        #                                                         )
 
         # todo keyid needs to be passed on a per request basis
         invoke_lambda = aws_lambda.Function(self, "NitroInvokeLambda",

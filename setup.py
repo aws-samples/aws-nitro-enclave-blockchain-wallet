@@ -24,7 +24,9 @@ setuptools.setup(
         "aws-cdk.aws-ecr-assets=={}".format(CDK_VERSION),
         "aws-cdk.aws-kms=={}".format(CDK_VERSION),
         "aws-cdk.aws-secretsmanager=={}".format(CDK_VERSION),
-        "aws-cdk.aws-lambda=={}".format(CDK_VERSION)
+        "aws-cdk.aws-lambda=={}".format(CDK_VERSION),
+        "aws-cdk.aws-elasticloadbalancingv2=={}".format(CDK_VERSION),
+        "aws-cdk.aws-autoscaling=={}".format(CDK_VERSION)
     ],
 
     python_requires=">=3.6",

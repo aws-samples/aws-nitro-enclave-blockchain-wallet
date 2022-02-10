@@ -61,14 +61,13 @@ def main():
         credential = payload_json["credential"]
         ciphertext = payload_json["ciphertext"]
 
-        # Get data from AWS API call
-        # content = aws_api_call(credential)
+        plaintext_b64 = kms_call(credential, ciphertext)
+        plaintext = base64.standard_b64decode(plaintext_b64).decode()
 
-        plaintext = kms_call(credential, ciphertext)
-        print("plaintext: {}".format(base64.standard_b64decode(plaintext)))
-        # c.send(str.encode(json.dumps(plaintext)))
-        # Send the response back to parent instance
-        # c.send(str.encode(json.dumps(content)))
+        print("plaintext: {}".format(plaintext))
+        response_plaintext = {"plaintext": plaintext}
+
+        c.send(str.encode(json.dumps(response_plaintext)))
 
         # Close the connection
         c.close()

@@ -17,9 +17,11 @@ class NitroWalletKMSStack(core.Stack):
                                                   type="String",
                                                   description="")
 
+        # todo defaults to 0000...for debug mode
         enclave_image_pcr0 = core.CfnParameter(self, "EIPPCR0",
                                                type="String",
-                                               description="")
+                                               description="",
+                                               default="000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
 
         lambda_role_arn = core.CfnParameter(self, "LambdaRoleARN",
                                             type="String",
