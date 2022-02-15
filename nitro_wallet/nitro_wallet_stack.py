@@ -5,7 +5,8 @@ from aws_cdk import (
     aws_ecr_assets,
     aws_secretsmanager,
     aws_lambda,
-    aws_autoscaling
+    aws_autoscaling,
+    aws_elasticloadbalancingv2
 )
 
 
@@ -16,6 +17,9 @@ class NitroWalletStack(core.Stack):
         params = kwargs.pop('params')
         super().__init__(scope, construct_id, **kwargs)
 
+        # todo secrets name
+        #  initiate -> create identity (ETH2) -> encrypt and store -> mnemonic
+        #  terra bc -> create key, sign
         secrets_manager = aws_secretsmanager.Secret(self, "SecretsManager")
 
         # todo latest tag
@@ -33,7 +37,7 @@ class NitroWalletStack(core.Stack):
                           subnet_configuration=[aws_ec2.SubnetConfiguration(name='public',
                                                                             subnet_type=aws_ec2.SubnetType.PUBLIC),
                                                 aws_ec2.SubnetConfiguration(name='private',
-                                                                            subnet_type=aws_ec2.SubnetType.PRIVATE)
+                                                                            subnet_type=aws_ec2.SubnetType.PRIVATE),
                                                 ],
                           enable_dns_support=True,
                           enable_dns_hostnames=True)
@@ -70,7 +74,21 @@ class NitroWalletStack(core.Stack):
             private_dns_enabled=True
         )
 
-        subnet = vpc.private_subnets[0]
+        # mapping to actual AWS subnet index
+        subnet1 = vpc.private_subnets[0]
+        subnet2 = vpc.private_subnets[1]
+
+        nitro_instance_sg = aws_ec2.SecurityGroup(
+            self,
+            "Nitro",
+            vpc=vpc,
+            allow_all_outbound=True,
+            description="Private SG for NitroWallet EC2 instance")
+
+        # external members (nlb) can run a health check on the EC2 instance 443 port
+        nitro_instance_sg.add_ingress_rule(aws_ec2.Peer.any_ipv4(),
+                                           aws_ec2.Port.tcp(443))
+
         private_sg = aws_ec2.SecurityGroup(
             self,
             "NitroWalletPrivateSG",
@@ -97,58 +115,90 @@ class NitroWalletStack(core.Stack):
                                                               roles=[role.role_name],
                                                               instance_profile_name="InstanceProfile_EC2")
 
-        network_interface = aws_ec2.CfnInstance.NetworkInterfaceProperty(
-            device_index='0',
-            associate_public_ip_address=False,
-            subnet_id=subnet.subnet_id,
-            group_set=[private_sg.security_group_id],
+        ec2_iam_instance_profile_prop = aws_ec2.CfnLaunchTemplate.IamInstanceProfileProperty(
+            arn=ec2_iam_instance_profile.attr_arn
         )
 
-        block_device = aws_ec2.CfnInstance.BlockDeviceMappingProperty(device_name="/dev/xvda",
-                                                                      ebs=aws_ec2.CfnInstance.EbsProperty(
-                                                                          delete_on_termination=False,
-                                                                          volume_size=32,
-                                                                          volume_type='gp2',
-                                                                          encrypted=True
-                                                                      ))
+        network_interface = aws_ec2.CfnLaunchTemplate.NetworkInterfaceProperty(
+            device_index=0,
+            associate_public_ip_address=False,
+            groups=[private_sg.security_group_id, nitro_instance_sg.security_group_id]
+        )
 
-        # todo secrets name -> enclave
+        block_device = aws_ec2.CfnLaunchTemplate.BlockDeviceMappingProperty(device_name="/dev/xvda",
+                                                                            ebs=aws_ec2.CfnLaunchTemplate.EbsProperty(
+                                                                                # todo dev delete on termination
+                                                                                delete_on_termination=False,
+                                                                                volume_size=32,
+                                                                                volume_type='gp2',
+                                                                                encrypted=True
+                                                                            ))
+
+        # todo move server to different port from 443 to avoid root permissions -> docker image + vs_socket test
+        # todo instance refresh -> launch template update -> script
+        # todo output pcr0 value as well from enclave -> get pcr0 values / get ec2 instance ids -> script
+        # todo secrets name -> enclave -> permissions (iam role) + per request
+        # todo keyid needs to be passed on a per request basis (key id in encrypted metadata)
         mappings = {"__DEV_MODE__": params["deployment"],
-                    "__SIGNING_SERVER_IMAGE_URI__":  signing_server_image.image_uri,
+                    "__SIGNING_SERVER_IMAGE_URI__": signing_server_image.image_uri,
                     "__SIGNING_ENCLAVE_IMAGE_URI__": signing_enclave_image.image_uri}
 
         with open("./user_data/user_data.sh") as f:
             user_data_raw = core.Fn.sub(f.read(), mappings)
 
-        instance = aws_ec2.CfnInstance(self, 'NitroEC2Instance',
-                                       instance_type=aws_ec2.InstanceType("m5a.xlarge").to_string(),
-                                       user_data=core.Fn.base64(user_data_raw),
-                                       enclave_options=aws_ec2.CfnInstance.EnclaveOptionsProperty(enabled=True),
-                                       image_id=amzn_linux.image_id,
-                                       network_interfaces=[network_interface],
-                                       block_device_mappings=[block_device],
-                                       iam_instance_profile=ec2_iam_instance_profile.instance_profile_name
-                                       )
-
         signing_enclave_image.repository.grant_pull(role)
         signing_server_image.repository.grant_pull(role)
         secrets_manager.grant_read(role)
 
-        # todo nlb
-        # todo asg (ec2 nitro) -> EC2 Launch template -> nitro option
-        #  2 nitro instances
-        # nitro_autoscaling = aws_autoscaling.AutoScalingGroup(self, "NitroASG",
-        #                                                      instance_type=aws_ec2.InstanceType("m5a.xlarge"),
-        #
-        #                                                      https://github.com/aws-samples/aws-cdk-examples/blob/master/python/application-load-balancer/app.py)
+        nitro_launch_template_properties = aws_ec2.CfnLaunchTemplate.LaunchTemplateDataProperty(
+            instance_type=aws_ec2.InstanceType(
+                "m5a.xlarge").to_string(),
+            user_data=core.Fn.base64(user_data_raw),
+            enclave_options=aws_ec2.CfnLaunchTemplate.EnclaveOptionsProperty(
+                enabled=True),
+            image_id=amzn_linux.image_id,
+            network_interfaces=[network_interface],
+            block_device_mappings=[block_device],
+            iam_instance_profile=ec2_iam_instance_profile_prop
+        )
 
+        nitro_launch_template = aws_ec2.CfnLaunchTemplate(self, "NitroEC2LaunchTemplate",
+                                                          launch_template_data=nitro_launch_template_properties
+                                                          )
 
-        # nitro_autoscaling = aws_autoscaling.CfnAutoScalingGroup(self, "NitroASG",
-        #                                                         instance_type=aws_ec2.InstanceType("m5a.xlarge"),
-        #                                                         launch_template=
-        #                                                         )
+        nitro_launch_template_spec = aws_autoscaling.CfnAutoScalingGroup.LaunchTemplateSpecificationProperty(
+            version=nitro_launch_template.get_att("LatestVersionNumber").to_string(),
+            launch_template_id=nitro_launch_template.ref
+        )
 
-        # todo keyid needs to be passed on a per request basis
+        nitro_nlb = aws_elasticloadbalancingv2.NetworkLoadBalancer(self, "NitroEC2NetworkLoadBalancer",
+                                                                   internet_facing=False,
+                                                                   vpc=vpc,
+
+                                                                   vpc_subnets=aws_ec2.SubnetSelection(
+                                                                       subnet_type=aws_ec2.SubnetType.PRIVATE)
+                                                                   )
+
+        nitro_nlb_listener = nitro_nlb.add_listener("HTTPSListener",
+                                                    port=443,
+                                                    protocol=aws_elasticloadbalancingv2.Protocol.TCP
+                                                    )
+
+        nitro_nlb_target_group = nitro_nlb_listener.add_targets("NitroEC2AutoScalingGroupTarget",
+                                                                port=443,
+                                                                protocol=aws_elasticloadbalancingv2.Protocol.TCP
+                                                                )
+
+        nitro_asg = aws_autoscaling.CfnAutoScalingGroup(self, "NitroEC2AutoScalingGroup",
+                                                        max_size="2",
+                                                        min_size="2",
+                                                        auto_scaling_group_name="NitroEC2AutoScalingGroup",
+                                                        launch_template=nitro_launch_template_spec,
+                                                        target_group_arns=[nitro_nlb_target_group.target_group_arn],
+                                                        # todo all azs that keep private subnets?
+                                                        vpc_zone_identifier=[subnet1.subnet_id, subnet2.subnet_id]
+                                                        )
+
         invoke_lambda = aws_lambda.Function(self, "NitroInvokeLambda",
                                             code=aws_lambda.Code.from_asset(path="lambda_/NitroInvoke"),
                                             handler="lambda_function.lambda_handler",
@@ -156,20 +206,20 @@ class NitroWalletStack(core.Stack):
                                             timeout=core.Duration.minutes(2),
                                             memory_size=256,
                                             environment={"LOG_LEVEL": "DEBUG",
-                                                         "NITRO_INSTANCE_PRIVATE_DNS": instance.attr_private_dns_name},
+                                                         "NITRO_INSTANCE_PRIVATE_DNS": nitro_nlb.load_balancer_dns_name
+                                                         },
                                             vpc=vpc,
                                             vpc_subnets=aws_ec2.SubnetType.PRIVATE,
                                             security_group=private_sg
                                             )
 
-        # todo output pcr0 value as well from enclave
         core.CfnOutput(self, "EC2 Instance Role ARN",
                        value=role.role_arn,
                        description="EC2 Instance Role ARN")
 
-        core.CfnOutput(self, "EC2 Instance ID",
-                       value=instance.ref,
-                       description="Nitro EC2 Instance ID"
+        core.CfnOutput(self, "NLB Private DNS",
+                       value=nitro_nlb.load_balancer_dns_name,
+                       description="NLB Private DNS"
                        )
 
         core.CfnOutput(self, "Lambda Execution Role ARN",

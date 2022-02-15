@@ -1,4 +1,3 @@
-import socket
 import json
 import logging
 import socket
@@ -25,7 +24,7 @@ class S(BaseHTTPRequestHandler):
             self._set_response(404)
             self.wfile.write("ciphertext missing".encode("utf-8"))
 
-        plaintext_json = call_enclave(17, 5000, ciphertext)
+        plaintext_json = call_enclave(16, 5000, ciphertext)
 
         self._set_response()
         self.wfile.write(plaintext_json.encode("utf-8"))
