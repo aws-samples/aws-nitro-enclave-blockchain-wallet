@@ -17,19 +17,25 @@ class NitroWalletStack(core.Stack):
         params = kwargs.pop('params')
         super().__init__(scope, construct_id, **kwargs)
 
+        application_type = params["application_type"]
+
         # todo secrets name
         #  initiate -> create identity (ETH2) -> encrypt and store -> mnemonic
-        #  terra bc -> create key, sign
-        secrets_manager = aws_secretsmanager.Secret(self, "SecretsManager")
+        #  terra bc -> create key, sign -> store private keys in secret manager -> init -> create new private key with uuid -> sign tx
+        #  ethereum ->
+        # which key in secretsmanager -> ethereum account
+        encrypted_key = aws_secretsmanager.Secret(self, "SecretsManager")
 
         # todo latest tag
         # https://github.com/aws/aws-cdk/issues/2663#issuecomment-999335895
         signing_server_image = aws_ecr_assets.DockerImageAsset(self, "EthereumSigningServerImage",
-                                                               directory="./application/server",
+                                                               directory="./application/{}/server".format(
+                                                                   application_type),
                                                                )
 
         signing_enclave_image = aws_ecr_assets.DockerImageAsset(self, "EthereumSigningEnclaveImage",
-                                                                directory="./application/enclave",
+                                                                directory="./application/{}/enclave".format(
+                                                                    application_type),
                                                                 )
 
         vpc = aws_ec2.Vpc(self, 'VPC',
@@ -112,8 +118,8 @@ class NitroWalletStack(core.Stack):
         role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonEC2RoleforSSM"))
 
         ec2_iam_instance_profile = aws_iam.CfnInstanceProfile(self, 'InstanceProfile_EC2',
-                                                              roles=[role.role_name],
-                                                              instance_profile_name="InstanceProfile_EC2")
+                                                              roles=[role.role_name]
+                                                              )
 
         ec2_iam_instance_profile_prop = aws_ec2.CfnLaunchTemplate.IamInstanceProfileProperty(
             arn=ec2_iam_instance_profile.attr_arn
@@ -127,7 +133,7 @@ class NitroWalletStack(core.Stack):
 
         block_device = aws_ec2.CfnLaunchTemplate.BlockDeviceMappingProperty(device_name="/dev/xvda",
                                                                             ebs=aws_ec2.CfnLaunchTemplate.EbsProperty(
-                                                                                # todo dev delete on termination
+                                                                                # todo dev delete on termination (offering)
                                                                                 delete_on_termination=False,
                                                                                 volume_size=32,
                                                                                 volume_type='gp2',
@@ -148,7 +154,7 @@ class NitroWalletStack(core.Stack):
 
         signing_enclave_image.repository.grant_pull(role)
         signing_server_image.repository.grant_pull(role)
-        secrets_manager.grant_read(role)
+        encrypted_key.grant_read(role)
 
         nitro_launch_template_properties = aws_ec2.CfnLaunchTemplate.LaunchTemplateDataProperty(
             instance_type=aws_ec2.InstanceType(
@@ -174,7 +180,6 @@ class NitroWalletStack(core.Stack):
         nitro_nlb = aws_elasticloadbalancingv2.NetworkLoadBalancer(self, "NitroEC2NetworkLoadBalancer",
                                                                    internet_facing=False,
                                                                    vpc=vpc,
-
                                                                    vpc_subnets=aws_ec2.SubnetSelection(
                                                                        subnet_type=aws_ec2.SubnetType.PRIVATE)
                                                                    )
@@ -192,26 +197,31 @@ class NitroWalletStack(core.Stack):
         nitro_asg = aws_autoscaling.CfnAutoScalingGroup(self, "NitroEC2AutoScalingGroup",
                                                         max_size="2",
                                                         min_size="2",
-                                                        auto_scaling_group_name="NitroEC2AutoScalingGroup",
                                                         launch_template=nitro_launch_template_spec,
                                                         target_group_arns=[nitro_nlb_target_group.target_group_arn],
-                                                        # todo all azs that keep private subnets?
+                                                        # todo all azs that keep private subnets - isubnet -> subnet_id
                                                         vpc_zone_identifier=[subnet1.subnet_id, subnet2.subnet_id]
                                                         )
 
         invoke_lambda = aws_lambda.Function(self, "NitroInvokeLambda",
-                                            code=aws_lambda.Code.from_asset(path="lambda_/NitroInvoke"),
+                                            code=aws_lambda.Code.from_asset(
+                                                path="lambda_/{}/NitroInvoke".format(params["application_type"])),
                                             handler="lambda_function.lambda_handler",
                                             runtime=aws_lambda.Runtime.PYTHON_3_8,
                                             timeout=core.Duration.minutes(2),
                                             memory_size=256,
                                             environment={"LOG_LEVEL": "DEBUG",
-                                                         "NITRO_INSTANCE_PRIVATE_DNS": nitro_nlb.load_balancer_dns_name
+                                                         "NITRO_INSTANCE_PRIVATE_DNS": nitro_nlb.load_balancer_dns_name,
+                                                         "SECRET_ID": encrypted_key.secret_full_arn
                                                          },
                                             vpc=vpc,
                                             vpc_subnets=aws_ec2.SubnetType.PRIVATE,
                                             security_group=private_sg
                                             )
+
+        encrypted_key.grant_write(invoke_lambda)
+        # todo add dev condition - otherwise just the enclave should be able to read and decrypt the secret
+        # encrypted_key.grant_read(invoke_lambda)
 
         core.CfnOutput(self, "EC2 Instance Role ARN",
                        value=role.role_arn,

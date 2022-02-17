@@ -18,6 +18,7 @@ class NitroWalletKMSStack(core.Stack):
                                                   description="")
 
         # todo defaults to 0000...for debug mode
+        # todo if dev enable debug mode???
         enclave_image_pcr0 = core.CfnParameter(self, "EIPPCR0",
                                                type="String",
                                                description="",

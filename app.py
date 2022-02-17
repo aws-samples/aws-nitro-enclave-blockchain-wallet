@@ -7,8 +7,9 @@ from nitro_wallet.nitro_wallet_kms_stack import NitroWalletKMSStack
 
 app = core.App()
 
-# todo different sub stacks or different apps?
-NitroWalletStack(app, "devNitroWallet", params={"deployment": "dev"})
+# todo better naming
+NitroWalletStack(app, "devNitroWallet", params={"deployment": "dev", "application_type": "decrypt"})
+NitroWalletStack(app, "devNitroWalletEth", params={"deployment": "dev", "application_type": "eth1"})
 NitroWalletKMSStack(app, "devNitroWalletKMS", params={"deployment": "dev"})
 
 app.synth()
