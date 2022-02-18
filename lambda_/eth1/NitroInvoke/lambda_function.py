@@ -26,6 +26,33 @@ client_secrets_manager = boto3.client("secretsmanager")
 
 
 def lambda_handler(event, context):
+    """
+    example requests
+    {
+      "operation": "set_key",
+      "eth_key": "123",
+      "key_id": "0f24c87a-c8b5-4399-8f3f-95424a01be8a"
+    }
+
+    {
+      "operation": "get_key"
+    }
+
+    {
+      "operation": "sign_transaction",
+      "transaction_payload": {
+        "operation": "sign",
+        "amount": 0.01,
+        "dst_address": "0xa5D3241A1591061F2a4bB69CA0215F66520E67cf",
+        "nonce": 0,
+        "type": 2,
+        "chainid": 4,
+        "max_fee_per_gas": 100000000000,
+        "max_priority_fee_per_gas": 3000000000
+        }
+    }
+
+    """
     _logger.debug("incoming event: {}".format(event))
 
     nitro_instance_private_dns = os.getenv("NITRO_INSTANCE_PRIVATE_DNS")
@@ -107,9 +134,13 @@ def lambda_handler(event, context):
             raise Exception("exception happened sending decryption request to Nitro Enclave: {}".format(e))
 
         _logger.debug("response: {} {}".format(response.status, response.reason))
-        _logger.debug("response data: {}".format(response.read()))
 
-        return
+        response_raw = response.read()
+
+        _logger.debug("response data: {}".format(response_raw))
+        response_parsed = json.loads(response_raw)
+
+        return response_parsed
 
 
 

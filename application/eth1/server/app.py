@@ -1,5 +1,6 @@
 import json
 import logging
+import socket
 import ssl
 from http import client
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -77,26 +78,25 @@ def call_enclave(cid, port, enclave_payload):
     payload["transaction_payload"] = enclave_payload["transaction_payload"]
     payload["encrypted_key"] = encrypted_key
 
-    # # Create a vsock socket object
-    # s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
-    #
-    #
-    # # Connect to the server
-    # s.connect((cid, port))
-    #
-    # # Send AWS credential to the server running in enclave
-    # s.send(str.encode(json.dumps(payload)))
-    #
-    # # receive data from the server
-    # payload_processed = s.recv(1024).decode()
-    # print("payload_processed: {}".format(payload_processed))
-    #
-    # # close the connection
-    # s.close()
-    #
-    # return payload_processed
+    # Create a vsock socket object
+    s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
 
-    return json.dumps(payload)
+    # Connect to the server
+    s.connect((cid, port))
+
+    # Send AWS credential to the server running in enclave
+    s.send(str.encode(json.dumps(payload)))
+
+    # receive data from the server
+    payload_processed = s.recv(1024).decode()
+    print("payload_processed: {}".format(payload_processed))
+
+    # close the connection
+    s.close()
+
+    return payload_processed
+
+    # return json.dumps(payload)
 
 
 def run(server_class=HTTPServer, handler_class=S, port=443):

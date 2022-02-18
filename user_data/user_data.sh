@@ -385,7 +385,7 @@ usermod -aG ne ec2-user
 ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
 MEM_KEY=memory_mib
 CPU_KEY=cpu_count
-DEFAULT_MEM=3072
+DEFAULT_MEM=4096
 DEFAULT_CPU=2
 
 sed -r "s/^(\s*$MEM_KEY\s*:\s*).*/\1$DEFAULT_MEM/" -i "$ALLOCATOR_YAML"
@@ -423,11 +423,11 @@ EOF
   cd ../..
   chown -R ec2-user:ec2-user ./app
 
-  sudo -H -u ec2-user bash -c "cd /home/ec2-user/app/server && ./build_signing_server_enclave.sh && nitro-cli run-enclave --debug-mode --cpu-count 2 --memory 2500 --eif-path signing_server.eif"
+  sudo -H -u ec2-user bash -c "cd /home/ec2-user/app/server && ./build_signing_server_enclave.sh && nitro-cli run-enclave --debug-mode --cpu-count 2 --memory 3806 --eif-path signing_server.eif"
 fi
 
 # todo create service entry for watchdog
-echo "@reboot ec2-user nitro-cli run-enclave --debug-mode --cpu-count 2 --memory 2500 --eif-path /home/ec2-user/app/server/signing_server.eif" >>/etc/crontab
+echo "@reboot ec2-user nitro-cli run-enclave --debug-mode --cpu-count 2 --memory 3806 --eif-path /home/ec2-user/app/server/signing_server.eif" >>/etc/crontab
 
 cd /etc/pki/tls/certs
 ./make-dummy-cert localhost.crt

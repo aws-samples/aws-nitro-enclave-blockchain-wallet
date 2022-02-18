@@ -25,6 +25,26 @@ client_kms = boto3.client("kms")
 
 
 def lambda_handler(event, context):
+    """
+    example requests
+
+    {
+      "operation": "decrypt_enclave",
+      "ciphertext": "AQICAHj4McjJwtI+YZu0u9LjWmBuyau0WDq3jknNIKZZnJH3QQEBgQ5tMv5hiX1ekQ0BfrQ/AAAAZjBkBgkqhkiG9w0BBwagVzBVAgEAMFAGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMZahVu8v2NT1ESAyqAgEQgCMj9eMzVI4n8NFcLi/8vF2Gg01PjAMaqWLt+b1EBj0jPB1r2A=="
+    }
+
+    {
+      "operation": "decrypt_kms",
+      "ciphertext": "AQICAHj4McjJwtI+YZu0u9LjWmBuyau0WDq3jknNIKZZnJH3QQEBgQ5tMv5hiX1ekQ0BfrQ/AAAAZjBkBgkqhkiG9w0BBwagVzBVAgEAMFAGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMZahVu8v2NT1ESAyqAgEQgCMj9eMzVI4n8NFcLi/8vF2Gg01PjAMaqWLt+b1EBj0jPB1r2A=="
+    }
+
+    {
+      "operation": "encrypt",
+      "keyid": "0f24c87a-c8b5-4399-8f3f-95424a01be8a",
+      "plaintext": "Welcome1"
+    }
+
+    """
     _logger.debug("incoming event: {}".format(event))
 
     nitro_instance_private_dns = os.getenv("NITRO_INSTANCE_PRIVATE_DNS")

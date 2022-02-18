@@ -3,6 +3,7 @@ import json
 import socket
 import subprocess
 
+import web3
 from web3.auto import w3
 
 
@@ -64,19 +65,31 @@ def main():
         transaction_dict = payload_json["transaction_payload"]
         key_encrypted = payload_json["encrypted_key"]
 
-        key_b64 = kms_call(credential, key_encrypted)
-        key_plaintext = base64.standard_b64decode(key_b64).decode()
+        try:
+            key_b64 = kms_call(credential, key_encrypted)
+        except Exception as e:
+            msg = "exception happened calling kms binary: {}".format(e)
+            print(msg)
+            response_plaintext = msg
 
-        transaction_signed = w3.eth.account.sign_transaction(transaction_dict, key_plaintext)
+        else:
+            key_plaintext = base64.standard_b64decode(key_b64).decode()
 
-        response_plaintext = {"transaction_signed: {}".format(transaction_signed.rawTransaction),
-                              "transaction_hash: {}".format(transaction_signed.hash)}
+            # transform input
+            transaction_dict["value"] = web3.Web3.toWei(transaction_dict["value"], 'ether')
+
+            try:
+                transaction_signed = w3.eth.account.sign_transaction(transaction_dict, key_plaintext)
+                response_plaintext = {"transaction_signed": transaction_signed.rawTransaction.hex(),
+                                      "transaction_hash": transaction_signed.hash.hex()}
+            except Exception as e:
+                msg = "exception happened signing the transaction: {}".format(e)
+                print(msg)
+                response_plaintext = msg
 
         print("response_plaintext: {}".format(response_plaintext))
 
         c.send(str.encode(json.dumps(response_plaintext)))
-
-        # Close the connection
         c.close()
 
 
