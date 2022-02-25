@@ -13,7 +13,6 @@ from aws_cdk import (
 class NitroWalletStack(core.Stack):
 
     def __init__(self, scope: core.Construct, construct_id: str, **kwargs) -> None:
-        # todo dev/prod missing
         params = kwargs.pop('params')
         super().__init__(scope, construct_id, **kwargs)
 
@@ -133,16 +132,14 @@ class NitroWalletStack(core.Stack):
 
         block_device = aws_ec2.CfnLaunchTemplate.BlockDeviceMappingProperty(device_name="/dev/xvda",
                                                                             ebs=aws_ec2.CfnLaunchTemplate.EbsProperty(
-                                                                                # todo dev delete on termination (offering)
-                                                                                delete_on_termination=False,
+                                                                                delete_on_termination=True if params.get(
+                                                                                    'deployment') == "dev" else False,
                                                                                 volume_size=32,
                                                                                 volume_type='gp2',
                                                                                 encrypted=True
                                                                             ))
 
         # todo move server to different port from 443 to avoid root permissions -> docker image + vs_socket test
-        # todo instance refresh -> launch template update -> script
-        # todo output pcr0 value as well from enclave -> get pcr0 values / get ec2 instance ids -> script
         # todo secrets name -> enclave -> permissions (iam role) + per request
         # todo keyid needs to be passed on a per request basis (key id in encrypted metadata)
         mappings = {"__DEV_MODE__": params["deployment"],
@@ -199,7 +196,6 @@ class NitroWalletStack(core.Stack):
                                                         min_size="2",
                                                         launch_template=nitro_launch_template_spec,
                                                         target_group_arns=[nitro_nlb_target_group.target_group_arn],
-                                                        # todo all azs that keep private subnets - isubnet -> subnet_id
                                                         vpc_zone_identifier=[subnet1.subnet_id, subnet2.subnet_id]
                                                         )
 
@@ -220,8 +216,9 @@ class NitroWalletStack(core.Stack):
                                             )
 
         encrypted_key.grant_write(invoke_lambda)
-        # todo add dev condition - otherwise just the enclave should be able to read and decrypt the secret
-        # encrypted_key.grant_read(invoke_lambda)
+        # if productive case, lambda is just allowed to set the secret key value
+        if params.get("deployment") == "dev":
+            encrypted_key.grant_read(invoke_lambda)
 
         core.CfnOutput(self, "EC2 Instance Role ARN",
                        value=role.role_arn,
@@ -229,9 +226,12 @@ class NitroWalletStack(core.Stack):
 
         core.CfnOutput(self, "NLB Private DNS",
                        value=nitro_nlb.load_balancer_dns_name,
-                       description="NLB Private DNS"
-                       )
+                       description="NLB Private DNS")
 
         core.CfnOutput(self, "Lambda Execution Role ARN",
                        value=invoke_lambda.role.role_arn,
                        description="Lambda Execution Role ARN")
+
+        core.CfnOutput(self, "ASG Group Name",
+                       value=nitro_asg.ref,
+                       description="ASG Group Name")

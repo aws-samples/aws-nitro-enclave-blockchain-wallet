@@ -423,11 +423,43 @@ EOF
   cd ../..
   chown -R ec2-user:ec2-user ./app
 
-  sudo -H -u ec2-user bash -c "cd /home/ec2-user/app/server && ./build_signing_server_enclave.sh && nitro-cli run-enclave --debug-mode --cpu-count 2 --memory 3806 --eif-path signing_server.eif"
+  debug_flag = ""
+  if [[ ${__DEV_MODE__} == "dev" ]]; then
+    debug_flag = "--debug-mode "
+  fi
+
+  sudo -H -u ec2-user bash -c "cd /home/ec2-user/app/server && ./build_signing_server_enclave.sh && nitro-cli run-enclave --cpu-count 2 $debug_flag--memory 3806 --eif-path signing_server.eif"
 fi
 
 # todo create service entry for watchdog
-echo "@reboot ec2-user nitro-cli run-enclave --debug-mode --cpu-count 2 --memory 3806 --eif-path /home/ec2-user/app/server/signing_server.eif" >>/etc/crontab
+# https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave-refapp.html
+# https://stackoverflow.com/questions/51915848/configure-a-python-as-a-service-in-aws-ec2
+# /lib/systemd/system
+echo "@reboot ec2-user nitro-cli run-enclave --debug-mode --cpu-count 2 $debug_flag --memory 3806 --eif-path /home/ec2-user/app/server/signing_server.eif" >>/etc/crontab
+
+# [Unit]
+  #Description=Nitro Enclaves ACM Agent
+  #After=network-online.target
+  #DefaultDependencies=no
+  #Requires=nitro-enclaves-allocator.service
+  #After=nitro-enclaves-allocator.service
+  #Before=nginx.service
+  #
+  #[Service]
+  #Type=simple
+  #ExecStartPre=-/usr/bin/mkdir -p /run/nitro_enclaves/acm
+  #ExecStart=/usr/bin/p11ne-agent
+  #ExecStopPost=/usr/bin/rm -r /run/nitro_enclaves/acm
+  #Restart=always
+  #RestartSec=5
+  #StartLimitInterval=60
+  #StartLimitBurst=5
+  #
+  #[Install]
+  #WantedBy=multi-user.target
+
+
+
 
 cd /etc/pki/tls/certs
 ./make-dummy-cert localhost.crt
