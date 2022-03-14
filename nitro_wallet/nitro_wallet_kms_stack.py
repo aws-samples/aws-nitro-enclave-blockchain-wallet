@@ -30,7 +30,7 @@ class NitroWalletKMSStack(core.Stack):
 
         nitro_enclave_policy = aws_iam.PolicyDocument(
             statements=[aws_iam.PolicyStatement(
-                sid="Enable decrypt from enclave",
+                sid="Enable decrypt from AWS Nitro enclave",
                 actions=["kms:Decrypt"],
                 principals=[aws_iam.ArnPrincipal(aws_instance_role_arn.value_as_string)],
                 resources=["*"],
@@ -40,7 +40,7 @@ class NitroWalletKMSStack(core.Stack):
                     }}
             ),
                 aws_iam.PolicyStatement(
-                    sid="Enable encrypt from lambda",
+                    sid="Enable encrypt from Lambda",
                     actions=["kms:*"],
                     principals=[aws_iam.ArnPrincipal(lambda_role_arn.value_as_string)],
                     resources=["*"]

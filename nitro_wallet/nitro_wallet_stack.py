@@ -47,6 +47,7 @@ class NitroWalletStack(core.Stack):
                           enable_dns_support=True,
                           enable_dns_hostnames=True)
 
+        # todo endpoints combine?
         kms_endpoint = aws_ec2.InterfaceVpcEndpoint(
             self, "KMSEndpoint",
             vpc=vpc,
@@ -208,7 +209,8 @@ class NitroWalletStack(core.Stack):
                                             memory_size=256,
                                             environment={"LOG_LEVEL": "DEBUG",
                                                          "NITRO_INSTANCE_PRIVATE_DNS": nitro_nlb.load_balancer_dns_name,
-                                                         "SECRET_ID": encrypted_key.secret_full_arn
+                                                         "SECRET_ID": encrypted_key.secret_full_arn,
+                                                         # "KEY_ID": todo add kms to the same stack
                                                          },
                                             vpc=vpc,
                                             vpc_subnets=aws_ec2.SubnetType.PRIVATE,
@@ -223,10 +225,6 @@ class NitroWalletStack(core.Stack):
         core.CfnOutput(self, "EC2 Instance Role ARN",
                        value=role.role_arn,
                        description="EC2 Instance Role ARN")
-
-        core.CfnOutput(self, "NLB Private DNS",
-                       value=nitro_nlb.load_balancer_dns_name,
-                       description="NLB Private DNS")
 
         core.CfnOutput(self, "Lambda Execution Role ARN",
                        value=invoke_lambda.role.role_arn,

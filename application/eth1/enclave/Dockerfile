@@ -13,9 +13,10 @@ COPY requirements.txt ./
 RUN pip3 install -r /app/requirements.txt
 
 COPY server.py ./
-COPY traffic-forwarder.py ./
-COPY run.sh ./
+#COPY traffic-forwarder.py ./
+#COPY run.sh ./
 
-RUN chmod +x run.sh
+#RUN chmod +x run.sh
 
-CMD ["/app/run.sh"]
+#CMD ["/app/run.sh"]
+CMD [ "python3", "/app/server.py" ]

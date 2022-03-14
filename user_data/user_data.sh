@@ -73,7 +73,7 @@ if [[ ! -f /etc/systemd/system/nitro-signing-server.service ]]; then
 
   debug_flag = ""
   if [[ ${__DEV_MODE__} == "dev" ]]; then
-    debug_flag = "--debug-mode "
+    debug_flag = "--debug-mode"
   fi
 
   cat <<'EOF' >>/etc/systemd/system/nitro-signing-server.service
@@ -140,7 +140,8 @@ def nitro_cli_run_call():
     subprocess_args = [
         "/bin/nitro-cli",
         "run-enclave",
-        "--debug-mode",
+
+        "$debug_flag",
         "--cpu-count", "2",
         "--memory", "3806",
         "--eif-path", "/home/ec2-user/app/server/signing_server.eif"
