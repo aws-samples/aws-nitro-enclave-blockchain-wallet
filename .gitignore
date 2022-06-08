@@ -1,0 +1,17 @@
+*.swp
+package-lock.json
+__pycache__
+.pytest_cache
+.env
+*.egg-info
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+workbook.txt
+.idea
+.venv
+cdk.context.json
+application/eth1/enclave/kms/*
+key
+application/eth2/
