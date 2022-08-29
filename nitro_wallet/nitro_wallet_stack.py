@@ -1,5 +1,6 @@
 #  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #  SPDX-License-Identifier: MIT-0
+import aws_cdk
 from aws_cdk import (
     Token,
     Stack,
@@ -31,23 +32,20 @@ class NitroWalletStack(Stack):
         # key to encrypt stored private keys - key rotation can be enabled in this scenario since that the
         # key id is encoded in the cypher text metadata
         encryption_key = aws_kms.Key(self, "EncryptionKey",
-                                     enable_key_rotation=True)
-
-        # default region to ensure synth
-        region = "us-east-1"
-        if not Token.is_unresolved(self.region):
-            region = self.region
+                                     enable_key_rotation=True
+                                     )
+        encryption_key.apply_removal_policy(aws_cdk.RemovalPolicy.DESTROY)
 
         signing_server_image = aws_ecr_assets.DockerImageAsset(self, "EthereumSigningServerImage",
                                                                directory="./application/{}/server".format(
                                                                    application_type),
-                                                               build_args={"REGION_ARG": region}
+                                                               build_args={"REGION_ARG": self.region}
                                                                )
 
         signing_enclave_image = aws_ecr_assets.DockerImageAsset(self, "EthereumSigningEnclaveImage",
                                                                 directory="./application/{}/enclave".format(
                                                                     application_type),
-                                                                build_args={"REGION_ARG": region}
+                                                                build_args={"REGION_ARG": self.region}
                                                                 )
 
         vpc = aws_ec2.Vpc(self, 'VPC',
@@ -129,7 +127,8 @@ class NitroWalletStack(Stack):
 
         mappings = {"__DEV_MODE__": params["deployment"],
                     "__SIGNING_SERVER_IMAGE_URI__": signing_server_image.image_uri,
-                    "__SIGNING_ENCLAVE_IMAGE_URI__": signing_enclave_image.image_uri}
+                    "__SIGNING_ENCLAVE_IMAGE_URI__": signing_enclave_image.image_uri,
+                    "__REGION__": self.region}
 
         with open("./user_data/user_data.sh") as f:
             user_data_raw = Fn.sub(f.read(), mappings)

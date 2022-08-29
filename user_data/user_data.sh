@@ -31,6 +31,14 @@ DEFAULT_CPU=2
 sed -r "s/^(\s*$MEM_KEY\s*:\s*).*/\1$DEFAULT_MEM/" -i "$ALLOCATOR_YAML"
 sed -r "s/^(\s*$CPU_KEY\s*:\s*).*/\1$DEFAULT_CPU/" -i "$ALLOCATOR_YAML"
 
+VSOCK_PROXY_YAML=/etc/nitro_enclaves/vsock-proxy.yaml
+cat <<'EOF' > $VSOCK_PROXY_YAML
+allowlist:
+- {address: kms.${__REGION__}.amazonaws.com, port: 443}
+- {address: kms-fips${__REGION__}.amazonaws.com, port: 443}
+
+EOF
+
 sleep 20
 systemctl start nitro-enclaves-allocator.service
 systemctl enable nitro-enclaves-allocator.service
