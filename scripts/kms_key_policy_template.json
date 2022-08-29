@@ -1,0 +1,52 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Enable decrypt from enclave",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "<devNitroWalletEth.EC2InstanceRoleARN>"
+      },
+      "Action": "kms:Decrypt",
+      "Resource": "*",
+      "Condition": {
+        "StringEqualsIgnoreCase": {
+          "kms:RecipientAttestation:ImageSha384": "<PCR0_VALUE_FROM_EIF_BUILD>"
+        }
+      }
+    },
+    {
+      "Sid": "Enable encrypt from lambda",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "<devNitroWalletEth.LambdaExecutionRoleARN>"
+      },
+      "Action": "kms:Encrypt",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "<KMS_ADMINISTRATOR_ROLE_ARN>"
+      },
+      "Action": [
+        "kms:Create*",
+        "kms:Describe*",
+        "kms:Enable*",
+        "kms:List*",
+        "kms:Put*",
+        "kms:Update*",
+        "kms:Revoke*",
+        "kms:Disable*",
+        "kms:Get*",
+        "kms:Delete*",
+        "kms:ScheduleKeyDeletion",
+        "kms:CancelKeyDeletion",
+        "kms:GenerateDataKey",
+        "kms:TagResource",
+        "kms:UntagResource"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

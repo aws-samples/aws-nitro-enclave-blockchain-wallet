@@ -59,7 +59,7 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
 
 4. Deploy the example code with the CDK CLI:
     ```bash
-    cdk deploy
+    cdk deploy devNitroWalletEth
     ```
 
 ## KMS Key Policy
@@ -117,6 +117,17 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
     }
   ]
 }
+```
+
+To leverage the provided `generate_key_policy.sh` script, a CDK output file needs to be provided.
+This file can be created by running the following command:
+```bash
+cdk deploy devNitroWalletEth -O output.json
+```
+
+After the `output.json` file has been created, the following command can be used to create the KMS key policy:
+```bash
+./script/generate_key_policy.sh ./output.json
 ```
 
 ## Key Generation and Requests
