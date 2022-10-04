@@ -5,18 +5,19 @@
 set +x
 set -e
 
-KMS_FOLDER=./application/eth1/enclave/kms
-KMSTOOL_FOLDER=./aws-nitro-enclaves-sdk-c/bin/kmstool-enclave-cli
+NITRO_ENCLAVE_CLI_VERSION="v0.3.0"
+KMS_FOLDER="./application/eth1/enclave/kms"
+KMSTOOL_FOLDER="./aws-nitro-enclaves-sdk-c/bin/kmstool-enclave-cli"
 
 if [[ ! -d ${KMS_FOLDER} ]]; then
   mkdir -p ${KMS_FOLDER}
 fi
 
 # delete repo if already there or if folder exists
-rm -rf ${KMS_FOLDER}/aws-nitro-enclaves-sdk-c
+rm -rf "${KMS_FOLDER}/aws-nitro-enclaves-sdk-c"
 
 cd ${KMS_FOLDER}
-git clone https://github.com/aws/aws-nitro-enclaves-sdk-c.git
+git clone --depth 1 --branch ${NITRO_ENCLAVE_CLI_VERSION} https://github.com/aws/aws-nitro-enclaves-sdk-c.git
 
 # if in corporate network execute
 cd ./aws-nitro-enclaves-sdk-c/containers
