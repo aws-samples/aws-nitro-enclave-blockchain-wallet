@@ -53,7 +53,7 @@ class NitroWalletStack(Stack):
                           subnet_configuration=[aws_ec2.SubnetConfiguration(name='public',
                                                                             subnet_type=aws_ec2.SubnetType.PUBLIC),
                                                 aws_ec2.SubnetConfiguration(name='private',
-                                                                            subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_NAT),
+                                                                            subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS),
                                                 ],
                           enable_dns_support=True,
                           enable_dns_hostnames=True)
@@ -61,14 +61,14 @@ class NitroWalletStack(Stack):
         aws_ec2.InterfaceVpcEndpoint(
             self, "KMSEndpoint",
             vpc=vpc,
-            subnets=aws_ec2.SubnetSelection(subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_NAT),
+            subnets=aws_ec2.SubnetSelection(subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS),
             service=aws_ec2.InterfaceVpcEndpointAwsService.KMS,
             private_dns_enabled=True
         )
         aws_ec2.InterfaceVpcEndpoint(
             self, "SecretsManagerEndpoint",
             vpc=vpc,
-            subnets=aws_ec2.SubnetSelection(subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_NAT),
+            subnets=aws_ec2.SubnetSelection(subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS),
             service=aws_ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
             private_dns_enabled=True
         )
@@ -76,7 +76,7 @@ class NitroWalletStack(Stack):
         aws_ec2.InterfaceVpcEndpoint(
             self, 'SSMEndpoint',
             vpc=vpc,
-            subnets=aws_ec2.SubnetSelection(subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_NAT),
+            subnets=aws_ec2.SubnetSelection(subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS),
             service=aws_ec2.InterfaceVpcEndpointAwsService.SSM,
             private_dns_enabled=True
         )
@@ -84,7 +84,7 @@ class NitroWalletStack(Stack):
         aws_ec2.InterfaceVpcEndpoint(
             self, 'ECREndpoint',
             vpc=vpc,
-            subnets=aws_ec2.SubnetSelection(subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_NAT),
+            subnets=aws_ec2.SubnetSelection(subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS),
             service=aws_ec2.InterfaceVpcEndpointAwsService.ECR,
             private_dns_enabled=True
         )
@@ -151,7 +151,7 @@ class NitroWalletStack(Stack):
                                                                    internet_facing=False,
                                                                    vpc=vpc,
                                                                    vpc_subnets=aws_ec2.SubnetSelection(
-                                                                       subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_NAT)
+                                                                       subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS)
                                                                    )
 
 
@@ -161,7 +161,7 @@ class NitroWalletStack(Stack):
                                                      launch_template=nitro_launch_template,
                                                      vpc=vpc,
                                                      vpc_subnets=aws_ec2.SubnetSelection(
-                                                         subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_NAT),
+                                                         subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS),
                                                      update_policy=aws_autoscaling.UpdatePolicy.rolling_update()
 
                                                      )
@@ -193,7 +193,7 @@ class NitroWalletStack(Stack):
                                                          },
                                             vpc=vpc,
                                             vpc_subnets=aws_ec2.SubnetSelection(
-                                                subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_NAT
+                                                subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS
                                             ),
                                             security_groups=[nitro_instance_sg]
                                             )
