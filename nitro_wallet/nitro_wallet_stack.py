@@ -39,12 +39,14 @@ class NitroWalletStack(Stack):
         signing_server_image = aws_ecr_assets.DockerImageAsset(self, "EthereumSigningServerImage",
                                                                directory="./application/{}/server".format(
                                                                    application_type),
+                                                               platform=aws_ecr_assets.Platform.LINUX_AMD64,
                                                                build_args={"REGION_ARG": self.region}
                                                                )
 
         signing_enclave_image = aws_ecr_assets.DockerImageAsset(self, "EthereumSigningEnclaveImage",
                                                                 directory="./application/{}/enclave".format(
                                                                     application_type),
+                                                                platform=aws_ecr_assets.Platform.LINUX_AMD64,
                                                                 build_args={"REGION_ARG": self.region}
                                                                 )
 
