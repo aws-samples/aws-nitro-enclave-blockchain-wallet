@@ -59,7 +59,7 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
 
 4. Deploy the example code with the CDK CLI:
     ```bash
-    cdk deploy devNitroWalletEth
+    cdk deploy --profile [profile from credentials] devNitroWalletEth
     ```
 
 ## KMS Key Policy
