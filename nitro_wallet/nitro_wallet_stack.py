@@ -156,7 +156,6 @@ class NitroWalletStack(Stack):
                                                                        subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS)
                                                                    )
 
-
         nitro_asg = aws_autoscaling.AutoScalingGroup(self, "NitroEC2AutoScalingGroup",
                                                      max_capacity=2,
                                                      min_capacity=2,

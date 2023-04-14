@@ -12,15 +12,18 @@ set +e
 #
 #fi
 
-yum update -y
 amazon-linux-extras install docker
-systemctl start docker
-systemctl enable docker
 amazon-linux-extras enable aws-nitro-enclaves-cli
+
+yum update -y
 yum install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel htop git mod_ssl
 
 usermod -aG docker ec2-user
 usermod -aG ne ec2-user
+
+sleep 5
+systemctl start docker
+systemctl enable docker
 
 ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
 MEM_KEY=memory_mib
@@ -76,9 +79,9 @@ fi
 
 if [[ ! -f /etc/systemd/system/nitro-signing-server.service ]]; then
 
-  debug_flag = ""
+  debug_flag=""
   if [[ ${__DEV_MODE__} == "dev" ]]; then
-    debug_flag = "--debug-mode"
+    debug_flag="--debug-mode"
   fi
 
   cat <<'EOF' >>/etc/systemd/system/nitro-signing-server.service

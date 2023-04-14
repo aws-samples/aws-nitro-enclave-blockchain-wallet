@@ -18,7 +18,8 @@ def kms_call(credential, ciphertext):
 
     subprocess_args = [
         "/app/kmstool_enclave_cli",
-        "--region", os.getenv("REGION", "us-east-1"),
+        "decrypt",
+        "--region", os.getenv("REGION"),
         "--proxy-port", "8000",
         "--aws-access-key-id", aws_access_key_id,
         "--aws-secret-access-key", aws_secret_access_key,
@@ -34,9 +35,10 @@ def kms_call(credential, ciphertext):
     )
 
     # returns b64 encoded plaintext
-    plaintext = proc.communicate()[0].decode()
+    result_b64 = proc.communicate()[0].decode()
+    plaintext_b64 = result_b64.split(":")[1].strip()
 
-    return plaintext
+    return plaintext_b64
 
 
 def main():

@@ -5,7 +5,7 @@
 set +x
 set -e
 
-NITRO_ENCLAVE_CLI_VERSION="v0.3.0"
+NITRO_ENCLAVE_CLI_VERSION="v0.3.1"
 KMS_FOLDER="./application/eth1/enclave/kms"
 KMSTOOL_FOLDER="./aws-nitro-enclaves-sdk-c/bin/kmstool-enclave-cli"
 
