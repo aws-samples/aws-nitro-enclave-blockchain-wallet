@@ -17,4 +17,4 @@ ARG REGION_ARG
 ENV REGION=$REGION_ARG
 
 COPY server.py ./
-CMD [ "python3", "/app/server.py" ]
+CMD [ "python", "/app/server.py" ]
