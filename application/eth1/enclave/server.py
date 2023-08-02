@@ -12,27 +12,30 @@ from web3.auto import w3
 
 
 def kms_call(credential, ciphertext):
-    aws_access_key_id = credential['access_key_id']
-    aws_secret_access_key = credential['secret_access_key']
-    aws_session_token = credential['token']
+    aws_access_key_id = credential["access_key_id"]
+    aws_secret_access_key = credential["secret_access_key"]
+    aws_session_token = credential["token"]
 
     subprocess_args = [
         "/app/kmstool_enclave_cli",
         "decrypt",
-        "--region", os.getenv("REGION"),
-        "--proxy-port", "8000",
-        "--aws-access-key-id", aws_access_key_id,
-        "--aws-secret-access-key", aws_secret_access_key,
-        "--aws-session-token", aws_session_token,
-        "--ciphertext", ciphertext,
+        "--region",
+        os.getenv("REGION"),
+        "--proxy-port",
+        "8000",
+        "--aws-access-key-id",
+        aws_access_key_id,
+        "--aws-secret-access-key",
+        aws_secret_access_key,
+        "--aws-session-token",
+        aws_session_token,
+        "--ciphertext",
+        ciphertext,
     ]
 
     print("subprocess args: {}".format(subprocess_args))
 
-    proc = subprocess.Popen(
-        subprocess_args,
-        stdout=subprocess.PIPE
-    )
+    proc = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE)
 
     # returns b64 encoded plaintext
     result_b64 = proc.communicate()[0].decode()
@@ -82,10 +85,16 @@ def main():
             key_plaintext = base64.standard_b64decode(key_b64).decode()
 
             try:
-                transaction_dict["value"] = web3.Web3.toWei(transaction_dict["value"], 'ether')
-                transaction_signed = w3.eth.account.sign_transaction(transaction_dict, key_plaintext)
-                response_plaintext = {"transaction_signed": transaction_signed.rawTransaction.hex(),
-                                      "transaction_hash": transaction_signed.hash.hex()}
+                transaction_dict["value"] = web3.Web3.toWei(
+                    transaction_dict["value"], "ether"
+                )
+                transaction_signed = w3.eth.account.sign_transaction(
+                    transaction_dict, key_plaintext
+                )
+                response_plaintext = {
+                    "transaction_signed": transaction_signed.rawTransaction.hex(),
+                    "transaction_hash": transaction_signed.hash.hex(),
+                }
 
             except Exception as e:
                 msg = "exception happened signing the transaction: {}".format(e)
@@ -101,5 +110,5 @@ def main():
         c.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
