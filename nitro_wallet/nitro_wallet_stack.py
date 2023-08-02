@@ -2,7 +2,6 @@
 #  SPDX-License-Identifier: MIT-0
 import aws_cdk
 from aws_cdk import (
-    Token,
     Stack,
     Fn,
     Duration,
@@ -16,6 +15,7 @@ from aws_cdk import (
     aws_elasticloadbalancingv2,
     aws_kms
 )
+from cdk_nag import NagSuppressions, NagPackSuppression
 from constructs import Construct
 
 
@@ -107,9 +107,7 @@ class NitroWalletStack(Stack):
                                            aws_ec2.Port.tcp(443))
 
         # AMI
-        amzn_linux = aws_ec2.MachineImage.latest_amazon_linux(
-            generation=aws_ec2.AmazonLinuxGeneration.AMAZON_LINUX_2
-        )
+        amzn_linux = aws_ec2.MachineImage.latest_amazon_linux2()
 
         # Instance Role and SSM Managed Policy
         role = aws_iam.Role(self, "InstanceSSM",
@@ -184,7 +182,7 @@ class NitroWalletStack(Stack):
                                             code=aws_lambda.Code.from_asset(
                                                 path="lambda_/{}/NitroInvoke".format(params["application_type"])),
                                             handler="lambda_function.lambda_handler",
-                                            runtime=aws_lambda.Runtime.PYTHON_3_8,
+                                            runtime=aws_lambda.Runtime.PYTHON_3_11,
                                             timeout=Duration.minutes(2),
                                             memory_size=256,
                                             environment={"LOG_LEVEL": "DEBUG",
@@ -219,3 +217,36 @@ class NitroWalletStack(Stack):
         CfnOutput(self, "KMS Key ID",
                   value=encryption_key.key_id,
                   description="KMS Key ID")
+
+        NagSuppressions.add_resource_suppressions(
+            construct=self,
+            suppressions=[
+                NagPackSuppression(
+                    id="AwsSolutions-VPC7",
+                    reason="No VPC Flow Log required for PoC-grade deployment",
+                ),
+                NagPackSuppression(
+                    id="AwsSolutions-ELB2",
+                    reason="No ELB Access Log required for PoC-grade deployment",
+                ),
+                NagPackSuppression(
+                    id="AwsSolutions-IAM5",
+                    reason="Permission to read CF stack is restrictive enough",
+                ),
+                NagPackSuppression(
+                    id="AwsSolutions-IAM4",
+                    reason="AmazonSSMManagedInstanceCore is a restrictive role",
+                ),
+                NagPackSuppression(
+                    id="AwsSolutions-AS3",
+                    reason="No Auto Scaling Group notifications required for PoC-grade deployment",
+                ),
+                NagPackSuppression(
+                    id="AwsSolutions-EC23", reason="Intrinsic functions referenced for cleaner private link creation"
+                ),
+                NagPackSuppression(
+                    id="AwsSolutions-SMG4", reason="Private key cannot be rotated",
+                )
+            ],
+            apply_to_children=True,
+        )
