@@ -146,8 +146,7 @@ def nitro_cli_run_call():
         "--cpu-count", "2",
         "--memory", "3806",
         "--eif-path", "/home/ec2-user/app/server/signing_server.eif",
-        "--enclave-cid", "16",
-        "--debug-mode"
+        "--enclave-cid", "16"
     ]
 
     print("enclave args: {}".format(subprocess_args))

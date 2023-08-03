@@ -22,8 +22,7 @@ git clone --depth 1 --branch ${NITRO_ENCLAVE_CLI_VERSION} https://github.com/aws
 # for corporate networks disable GOPROXY
 cd ./aws-nitro-enclaves-sdk-c/containers
 awk 'NR==1{print; print "ARG GOPROXY=direct"} NR!=1' Dockerfile.al2 > Dockerfile.al2_new
-sed -i "" "s/--default-toolchain 1.60/--default-toolchain 1.63/g" Dockerfile.al2_new
-mv Dockerfile.al2_new Dockerfile.al2
+sed "s/--default-toolchain 1.60/--default-toolchain 1.63/g" Dockerfile.al2_new > Dockerfile.al2
 cd ../../
 
 cd ${KMSTOOL_FOLDER}
