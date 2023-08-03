@@ -11,6 +11,7 @@ asg_name=$(jq -r '.devNitroWalletEth.ASGGroupName' ${output})
 instance_id=$(./scripts/get_asg_instances.sh ${asg_name} | head -n 1)
 
 # pcr_0
+# pcr_0 for debug mode: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 pcr_0=$(./scripts/get_pcr0.sh ${instance_id})
 
 # ec2 role

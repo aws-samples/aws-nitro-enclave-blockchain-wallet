@@ -4,13 +4,21 @@
 #  SPDX-License-Identifier: MIT-0
 
 import os
-from aws_cdk import App, Environment
+from aws_cdk import App, Environment, Aspects
 
 from nitro_wallet.nitro_wallet_stack import NitroWalletStack
+import cdk_nag
 
 app = App()
 
-NitroWalletStack(app, "devNitroWalletEth", params={"deployment": "dev", "application_type": "eth1"},
-                 env=Environment(region=os.environ.get("CDK_DEPLOY_REGION", os.environ["CDK_DEFAULT_REGION"])))
+NitroWalletStack(
+    app,
+    "devNitroWalletEth",
+    params={"deployment": "dev", "application_type": "eth1"},
+    env=Environment(
+        region=os.environ.get("CDK_DEPLOY_REGION", os.environ["CDK_DEFAULT_REGION"])
+    ),
+)
 
+Aspects.of(app).add(cdk_nag.AwsSolutionsChecks())
 app.synth()

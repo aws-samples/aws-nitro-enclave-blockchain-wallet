@@ -59,32 +59,34 @@ def lambda_handler(event, context):
     key_id = os.getenv("KEY_ARN")
 
     if not (nitro_instance_private_dns and secret_id and key_id):
-        _logger.fatal("NITRO_INSTANCE_PRIVATE_DNS, SECRET_ARN and KEY_ARN environment variables need to be set")
+        _logger.fatal(
+            "NITRO_INSTANCE_PRIVATE_DNS, SECRET_ARN and KEY_ARN environment variables need to be set"
+        )
 
     operation = event.get("operation")
     if not operation:
         _logger.fatal("request needs to define operation")
 
     if operation == "set_key":
-
         key_plaintext = event.get("eth_key")
 
         try:
             response = client_kms.encrypt(
-                KeyId=key_id,
-                Plaintext=key_plaintext.encode()
+                KeyId=key_id, Plaintext=key_plaintext.encode()
             )
         except Exception as e:
-            raise Exception("exception happened sending decryption request to KMS: {}".format(e))
+            raise Exception(
+                "exception happened sending decryption request to KMS: {}".format(e)
+            )
 
         _logger.debug("response: {}".format(response))
-        response_b64 = base64.standard_b64encode(response['CiphertextBlob']).decode()
+        response_b64 = base64.standard_b64encode(response["CiphertextBlob"]).decode()
 
         try:
             response = client_secrets_manager.update_secret(
                 SecretId=secret_id,
                 # rely on the AWS managed key for std. storage
-                SecretString=response_b64
+                SecretString=response_b64,
             )
         except Exception as e:
             raise Exception("exception happened updating secret: {}".format(e))
@@ -92,35 +94,44 @@ def lambda_handler(event, context):
         return response
 
     elif operation == "get_key":
-
         try:
-            response = client_secrets_manager.get_secret_value(
-                SecretId=secret_id
-            )
+            response = client_secrets_manager.get_secret_value(SecretId=secret_id)
         except Exception as e:
-            raise Exception("exception happened reading secret from secrets manager: {}".format(e))
+            raise Exception(
+                "exception happened reading secret from secrets manager: {}".format(e)
+            )
 
         return response["SecretString"]
 
     # sign_transaction
 
     elif operation == "sign_transaction":
-
         transaction_payload = event.get("transaction_payload")
 
         if not transaction_payload:
-            raise Exception("sign_transaction requires transaction_payload and secret_id optionally")
+            raise Exception(
+                "sign_transaction requires transaction_payload and secret_id optionally"
+            )
 
-        https_nitro_client = client.HTTPSConnection("{}:{}".format(nitro_instance_private_dns, 443),
-                                                    context=ssl_context)
+        https_nitro_client = client.HTTPSConnection(
+            "{}:{}".format(nitro_instance_private_dns, 443), context=ssl_context
+        )
 
         try:
-            https_nitro_client.request("POST", "/",
-                                       body=json.dumps({"transaction_payload": transaction_payload,
-                                                        "secret_id": secret_id}))
+            https_nitro_client.request(
+                "POST",
+                "/",
+                body=json.dumps(
+                    {"transaction_payload": transaction_payload, "secret_id": secret_id}
+                ),
+            )
             response = https_nitro_client.getresponse()
         except Exception as e:
-            raise Exception("exception happened sending decryption request to Nitro Enclave: {}".format(e))
+            raise Exception(
+                "exception happened sending decryption request to Nitro Enclave: {}".format(
+                    e
+                )
+            )
 
         _logger.debug("response: {} {}".format(response.status, response.reason))
 

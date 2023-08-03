@@ -130,6 +130,9 @@ After the `output.json` file has been created, the following command can be used
 ./script/generate_key_policy.sh ./output.json
 ```
 
+If the debug mode has been turned on by appending `--debug-mode` to the enclaves start sequence, the enclaves PCR0 value in the AWS KMS key policy needs to be updated to `000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`,
+otherwise AWS KMS will return error code `400`.
+
 ## Key Generation and Requests
 
 ### Create Ethereum Key
