@@ -12,14 +12,14 @@ set +e
 #
 #fi
 
-amazon-linux-extras install docker
-amazon-linux-extras enable aws-nitro-enclaves-cli
+sudo amazon-linux-extras install docker
+sudo amazon-linux-extras enable aws-nitro-enclaves-cli
 
 yum update -y
 yum install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel htop git mod_ssl jq
 
-usermod -aG docker ec2-user
-usermod -aG ne ec2-user
+sudo usermod -aG docker ec2-user
+sudo usermod -aG ne ec2-user
 
 sleep 5
 systemctl start docker
@@ -138,8 +138,7 @@ def nitro_cli_describe_call(name=None):
 
 
 # https://github.com/torfsen/python-systemd-tutorial
-# todo debug flag mention that it has been turned off
-# "--debug-mode",
+# todo debug flag - mention that it has been turned off
 def nitro_cli_run_call():
     subprocess_args = [
         "/bin/nitro-cli",
@@ -147,7 +146,8 @@ def nitro_cli_run_call():
         "--cpu-count", "2",
         "--memory", "3806",
         "--eif-path", "/home/ec2-user/app/server/signing_server.eif",
-        "--enclave-cid", "16"
+        "--enclave-cid", "16",
+        "--debug-mode"
     ]
 
     print("enclave args: {}".format(subprocess_args))
