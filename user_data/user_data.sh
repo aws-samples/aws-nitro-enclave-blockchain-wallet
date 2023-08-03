@@ -16,7 +16,7 @@ amazon-linux-extras install docker
 amazon-linux-extras enable aws-nitro-enclaves-cli
 
 yum update -y
-yum install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel htop git mod_ssl
+yum install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel htop git mod_ssl jq
 
 usermod -aG docker ec2-user
 usermod -aG ne ec2-user
