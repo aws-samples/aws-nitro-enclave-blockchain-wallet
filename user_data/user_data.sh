@@ -12,18 +12,14 @@ set +e
 #
 #fi
 
-amazon-linux-extras install docker -y
 amazon-linux-extras install aws-nitro-enclaves-cli -y
 
 yum update -y
-yum install aws-nitro-enclaves-cli-devel htop git mod_ssl jq -y
+yum install aws-nitro-enclaves-cli-devel -y
+yum install htop git mod_ssl jq -y
 
-usermod -aG docker ec2-user
 usermod -aG ne ec2-user
-
-sleep 5
-systemctl start docker
-systemctl enable docker
+usermod -aG docker ec2-user
 
 ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
 MEM_KEY=memory_mib
@@ -42,12 +38,9 @@ allowlist:
 
 EOF
 
-sleep 20
-systemctl start nitro-enclaves-allocator.service
-systemctl enable nitro-enclaves-allocator.service
-
-systemctl start nitro-enclaves-vsock-proxy.service
-systemctl enable nitro-enclaves-vsock-proxy.service
+systemctl enable --now nitro-enclaves-allocator.service
+systemctl enable --now nitro-enclaves-vsock-proxy.service
+systemctl enable --now docker
 
 cd /home/ec2-user
 
@@ -182,8 +175,8 @@ EOF
 fi
 
 # start and register the nitro signing server service for autostart
-systemctl start nitro-signing-server.service
-systemctl enable nitro-signing-server.service
+#systemctl start nitro-signing-server.service
+systemctl enable --now nitro-signing-server.service
 
 # create self signed cert for http server
 cd /etc/pki/tls/certs
