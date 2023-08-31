@@ -1,3 +1,28 @@
+Content-Type: multipart/mixed; boundary="//"
+MIME-Version: 1.0
+
+--//
+Content-Type: text/cloud-config; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="cloud-config.txt"
+
+#cloud-config
+bootcmd:
+  - [ amazon-linux-extras, install, aws-nitro-enclaves-cli ]
+packages:
+  - aws-nitro-enclaves-cli-devel
+  - htop
+  - git
+  - mode_ssl
+  - jq
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="userdata.txt"
+
 #!/bin/bash
 #  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #  SPDX-License-Identifier: MIT-0
@@ -12,18 +37,8 @@ set +e
 #
 #fi
 
-amazon-linux-extras install docker
-amazon-linux-extras enable aws-nitro-enclaves-cli
-
-yum update -y
-yum install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel htop git mod_ssl jq
-
 usermod -aG docker ec2-user
 usermod -aG ne ec2-user
-
-sleep 5
-systemctl start docker
-systemctl enable docker
 
 ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
 MEM_KEY=memory_mib
@@ -42,12 +57,9 @@ allowlist:
 
 EOF
 
-sleep 20
-systemctl start nitro-enclaves-allocator.service
-systemctl enable nitro-enclaves-allocator.service
-
-systemctl start nitro-enclaves-vsock-proxy.service
-systemctl enable nitro-enclaves-vsock-proxy.service
+systemctl enable --now docker
+systemctl enable --now nitro-enclaves-allocator.service
+systemctl enable --now nitro-enclaves-vsock-proxy.service
 
 cd /home/ec2-user
 
@@ -182,8 +194,7 @@ EOF
 fi
 
 # start and register the nitro signing server service for autostart
-systemctl start nitro-signing-server.service
-systemctl enable nitro-signing-server.service
+systemctl enable --now nitro-signing-server.service
 
 # create self signed cert for http server
 cd /etc/pki/tls/certs
@@ -191,3 +202,4 @@ cd /etc/pki/tls/certs
 
 # docker over system process manager
 docker run -d --restart unless-stopped --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
+--//--

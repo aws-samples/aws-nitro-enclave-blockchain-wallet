@@ -177,6 +177,7 @@ class NitroWalletStack(Stack):
             block_devices=[block_device],
             role=role,
             security_group=nitro_instance_sg,
+
         )
 
         nitro_nlb = aws_elasticloadbalancingv2.NetworkLoadBalancer(
