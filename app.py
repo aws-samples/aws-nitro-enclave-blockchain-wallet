@@ -16,7 +16,8 @@ NitroWalletStack(
     "devNitroWalletEth",
     params={"deployment": "dev", "application_type": "eth1"},
     env=Environment(
-        region=os.environ.get("CDK_DEPLOY_REGION", os.environ["CDK_DEFAULT_REGION"])
+        region=os.environ.get("CDK_DEPLOY_REGION"),
+        account=os.environ.get("CDK_DEPLOY_ACCOUNT")
     ),
 )
 
