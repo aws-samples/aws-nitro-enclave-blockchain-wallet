@@ -56,8 +56,13 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    ```bash
    pip install -r requirements.txt
    ```
+4. Specify the AWS region and account for your deployment:
+   ```bash
+   export CDK_DEPLOY_REGION=us-east-1
+   export CDK_DEPLOY_ACCOUNT=$(aws sts get-caller-identity | jq -r '.Account')
+   ```
 
-4. Deploy the example code with the CDK CLI:
+5. Deploy the example code with the CDK CLI:
     ```bash
     cdk deploy devNitroWalletEth
     ```
