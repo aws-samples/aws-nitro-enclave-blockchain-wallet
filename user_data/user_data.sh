@@ -43,7 +43,7 @@ usermod -aG ne ec2-user
 ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
 MEM_KEY=memory_mib
 CPU_KEY=cpu_count
-DEFAULT_MEM=4096
+DEFAULT_MEM=6144
 DEFAULT_CPU=2
 
 sed -r "s/^(\s*$MEM_KEY\s*:\s*).*/\1$DEFAULT_MEM/" -i "$ALLOCATOR_YAML"
@@ -156,7 +156,7 @@ def nitro_cli_run_call():
         "/bin/nitro-cli",
         "run-enclave",
         "--cpu-count", "2",
-        "--memory", "3806",
+        "--memory", "4320",
         "--eif-path", "/home/ec2-user/app/server/signing_server.eif",
         "--enclave-cid", "16"
     ]
