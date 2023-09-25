@@ -10,9 +10,11 @@ This repository contains all code artifacts for the following three blog posts:
 
 For an overview of how to design an AWS Nitro Enclave based blockchain application please have a look at the [first blog post](https://aws.amazon.com/blogs/database/part-1-aws-nitro-enclaves-for-secure-blockchain-key-management/).
 
-For a walk-through of how to deploy and configure the Nitro Enclave based blockchain key management solution please refer to the [second blog post](https://aws.amazon.com/blogs/database/part-2-aws-nitro-enclaves-for-secure-blockchain-key-management/).
+For a walkthrough of how to deploy and configure the Nitro Enclave based blockchain key management solution please refer to the [second blog post](https://aws.amazon.com/blogs/database/part-2-aws-nitro-enclaves-for-secure-blockchain-key-management/).
 
 For a deep dive into Nitro Enclaves and the explanation of features like cryptographic attestation and additional information about the general architecture of a Nitro Enclaves-based Ethereum signing application please refer to [third blog post](https://aws.amazon.com/blogs/database/part-3-aws-nitro-enclaves-for-secure-blockchain-key-management/).
+
+For an AWS Workshop Studio based walkthrough please refer to [Leveraging AWS Nitro Enclaves for Secure Blockchain Key Management](https://catalog.workshops.aws/nitrowallet).
 
 ## Architecture
 
