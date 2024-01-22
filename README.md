@@ -52,7 +52,7 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    
 2. Download the code from the GitHub repo and switch in the new directory:
     ```bash
-    git clone https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet.git && cd aws-nitro-enclaves-blockchain-wallet
+    git clone https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet.git && cd aws-nitro-enclave-blockchain-wallet
     ```
 3. Install the dependencies using the Python package manager:
    ```bash
@@ -64,7 +64,12 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    export CDK_DEPLOY_ACCOUNT=$(aws sts get-caller-identity | jq -r '.Account')
    ```
 
-5. Deploy the example code with the CDK CLI:
+5. Trigger the `kmstool_enclave_cli` build:
+   ```bash
+   ./scripts/build_kmstool_enclave_cli.sh
+   ```
+
+6. Deploy the example code with the CDK CLI:
     ```bash
     cdk deploy devNitroWalletEth
     ```
