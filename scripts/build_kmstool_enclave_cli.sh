@@ -27,7 +27,7 @@ cd ../../
 
 cd ${KMSTOOL_FOLDER}
 
-sed "s|-f ../../containers/Dockerfile.al2 ../..|-f ../../containers/Dockerfile.al2 ../.. --platform=${TARGET_PLATFORM}|g" build.sh >build.sh_new
+sed "s|-f ../../containers/Dockerfile.al2 ../..|-f ../../containers/Dockerfile.al2_new ../.. --platform=${TARGET_PLATFORM}|g" build.sh >build.sh_new
 mv build.sh_new build.sh
 chmod +x build.sh
 ./build.sh
