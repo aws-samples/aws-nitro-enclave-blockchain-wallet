@@ -170,7 +170,7 @@ class NitroWalletStack(Stack):
         nitro_launch_template = aws_ec2.LaunchTemplate(
             self,
             "NitroEC2LauchTemplate",
-            instance_type=aws_ec2.InstanceType("m5a.xlarge"),
+            instance_type=aws_ec2.InstanceType("m6i.xlarge"),
             user_data=aws_ec2.UserData.custom(user_data_raw),
             nitro_enclave_enabled=True,
             machine_image=amzn_linux,
