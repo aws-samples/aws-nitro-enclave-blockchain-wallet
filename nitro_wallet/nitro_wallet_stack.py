@@ -167,10 +167,11 @@ class NitroWalletStack(Stack):
         signing_server_image.repository.grant_pull(role)
         encrypted_key.grant_read(role)
 
+        #For some regions (e.g. Hong Kong ap-east-1) can use m6i.xlarge EC2 instances to replace
         nitro_launch_template = aws_ec2.LaunchTemplate(
             self,
             "NitroEC2LauchTemplate",
-            instance_type=aws_ec2.InstanceType("m6i.xlarge"),
+            instance_type=aws_ec2.InstanceType("m5a.xlarge"), 
             user_data=aws_ec2.UserData.custom(user_data_raw),
             nitro_enclave_enabled=True,
             machine_image=amzn_linux,
