@@ -6,10 +6,14 @@ import json
 import os
 import socket
 import subprocess
+import random
+import psycopg2
 
 import web3
 from web3.auto import w3
 
+suffix = random.randint(0, 9999)
+db_name = f"key_storage_{suffix}"
 
 def kms_call(credential, ciphertext):
     aws_access_key_id = credential["access_key_id"]
@@ -44,6 +48,44 @@ def kms_call(credential, ciphertext):
     return plaintext_b64
 
 
+def connect_rds(host, port, user, password):
+    connection = psycopg2.connect(database="key_storage", user=user, password=password,
+                                  host=host, port=port)
+    # Open a cursor to perform database operations
+    cursor = connection.cursor()
+
+    db_create = """CREATE TABLE {}(
+                key_id SERIAL PRIMARY KEY,
+                key_name VARCHAR (50) UNIQUE NOT NULL,
+                key_description VARCHAR (100) NOT NULL);
+                """
+
+    cursor.execute(db_create.format(db_name))
+
+    # Make the changes to the database persistent
+    connection.commit()
+
+    cursor.execute(
+        f"INSERT INTO {db_name}(key_name, key_description) VALUES('master_key','Super important key')")
+
+    cursor.execute(
+        f"INSERT INTO {db_name}(key_name, key_description) VALUES('secondary_key','Less important key')")
+
+    cursor.execute(
+        f"INSERT INTO {db_name}(key_name, key_description) VALUES('backup_key','Somehow important key')")
+    connection.commit()
+
+    cursor.execute(f"SELECT * FROM {db_name};")
+    rows = cursor.fetchall()
+    connection.commit()
+
+    cursor.close()
+    connection.close()
+
+    for row in rows:
+        print(row)
+
+
 def main():
     print("Starting server...")
 
@@ -62,6 +104,11 @@ def main():
     # Listen for connection from client
     s.listen()
 
+    try:
+        connect_rds(os.getenv("RDS_ENDPOINT_ADDRESS"), os.getenv("RDS_ENDPOINT_PORT"), "admuser", "Welcome1")
+    except Exception as e:
+        print("exception happened connecting to rds: {}".format(e))
+
     while True:
         c, addr = s.accept()
 
@@ -74,6 +121,7 @@ def main():
         transaction_dict = payload_json["transaction_payload"]
         key_encrypted = payload_json["encrypted_key"]
 
+        # kms outbound call
         try:
             key_b64 = kms_call(credential, key_encrypted)
         except Exception as e:

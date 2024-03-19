@@ -16,5 +16,14 @@ RUN pip3 install -r /app/requirements.txt
 ARG REGION_ARG
 ENV REGION=$REGION_ARG
 
+ARG RDS_ENDPOINT_PORT_ARG
+ENV RDS_ENDPOINT_PORT=$RDS_ENDPOINT_PORT_ARG
+
+ARG RDS_ENDPOINT_ADDRESS_ARG
+ENV RDS_ENDPOINT_ADDRESS=$RDS_ENDPOINT_ADDRESS_ARG
+
 COPY server.py ./
-CMD [ "python3", "/app/server.py" ]
+COPY run.sh ./
+COPY ./proxy/proxy ./
+
+CMD [ "sh", "/app/run.sh" ]

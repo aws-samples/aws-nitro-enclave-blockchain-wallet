@@ -14,10 +14,18 @@ from aws_cdk import (
     aws_autoscaling,
     aws_elasticloadbalancingv2,
     aws_kms,
+    aws_rds,
+    aws_ssm,
+    SecretValue
 )
 from cdk_nag import NagSuppressions, NagPackSuppression
 from constructs import Construct
 
+# rds endpoint address and port need to be manually set and the entire cdk stack needs to be redeployed
+# this problem is that non-resolved tokens cannot be used as docker build args - to automate it you can use
+# SSM parameter store or your ci/cd pipeline
+RDS_ENDPOINT_ADDRESS = "devnitrowalleteth-instancecplaceholder.rds.amazonaws.com"
+RDS_ENDPOINT_PORT = "5432"
 
 class NitroWalletStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
@@ -32,22 +40,6 @@ class NitroWalletStack(Stack):
         # key id is encoded in the cypher text metadata
         encryption_key = aws_kms.Key(self, "EncryptionKey", enable_key_rotation=True)
         encryption_key.apply_removal_policy(aws_cdk.RemovalPolicy.DESTROY)
-
-        signing_server_image = aws_ecr_assets.DockerImageAsset(
-            self,
-            "EthereumSigningServerImage",
-            directory="./application/{}/server".format(application_type),
-            platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
-        )
-
-        signing_enclave_image = aws_ecr_assets.DockerImageAsset(
-            self,
-            "EthereumSigningEnclaveImage",
-            directory="./application/{}/enclave".format(application_type),
-            platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
-        )
 
         vpc = aws_ec2.Vpc(
             self,
@@ -123,6 +115,42 @@ class NitroWalletStack(Stack):
 
         # all members of the sg can access each others https ports (443)
         nitro_instance_sg.add_ingress_rule(nitro_instance_sg, aws_ec2.Port.tcp(443))
+        # all members of the sg can access each others postres port (5432)
+        nitro_instance_sg.add_ingress_rule(nitro_instance_sg, aws_ec2.Port.tcp(5432))
+
+        rds_instance = aws_rds.DatabaseInstance(self, "Instance",
+                                                engine=aws_rds.DatabaseInstanceEngine.postgres(
+                                                    version=aws_rds.PostgresEngineVersion.VER_15_2),
+                                                credentials=aws_rds.Credentials.from_username("admuser",
+                                                                                              password=SecretValue.unsafe_plain_text(
+                                                                                                  "Welcome1")),
+
+                                                vpc=vpc,
+                                                max_allocated_storage=200,
+                                                database_name="key_storage",
+                                                security_groups=[nitro_instance_sg]
+                                                )
+
+        signing_server_image = aws_ecr_assets.DockerImageAsset(
+            self,
+            "EthereumSigningServerImage",
+            directory="./application/{}/server".format(application_type),
+            platform=aws_ecr_assets.Platform.LINUX_AMD64,
+            build_args={"REGION_ARG": self.region},
+        )
+
+        signing_enclave_image = aws_ecr_assets.DockerImageAsset(
+            self,
+            "EthereumSigningEnclaveImage",
+            directory="./application/{}/enclave".format(application_type),
+            platform=aws_ecr_assets.Platform.LINUX_AMD64,
+            # todo parameters can be replaced by SSM based solution using a two phase bootstrapping for valid AWS
+            #  credentials or parameters can be provided on the fly on a per request basis
+            build_args={"REGION_ARG": self.region,
+                        "RDS_ENDPOINT_ADDRESS_ARG": RDS_ENDPOINT_ADDRESS,
+                        "RDS_ENDPOINT_PORT_ARG": RDS_ENDPOINT_PORT},
+        )
+        signing_enclave_image.node.add_dependency(rds_instance)
 
         # AMI
         amzn_linux = aws_ec2.MachineImage.latest_amazon_linux2()
@@ -157,6 +185,8 @@ class NitroWalletStack(Stack):
             "__DEV_MODE__": params["deployment"],
             "__SIGNING_SERVER_IMAGE_URI__": signing_server_image.image_uri,
             "__SIGNING_ENCLAVE_IMAGE_URI__": signing_enclave_image.image_uri,
+            "__RDS_ENDPOINT_ADDRESS__": RDS_ENDPOINT_ADDRESS,
+            "__RDS_ENDPOINT_PORT__": RDS_ENDPOINT_PORT,
             "__REGION__": self.region,
         }
 
@@ -177,8 +207,8 @@ class NitroWalletStack(Stack):
             block_devices=[block_device],
             role=role,
             security_group=nitro_instance_sg,
-
         )
+        nitro_launch_template.node.add_dependency(rds_instance)
 
         nitro_nlb = aws_elasticloadbalancingv2.NetworkLoadBalancer(
             self,
@@ -223,7 +253,7 @@ class NitroWalletStack(Stack):
             self,
             "NitroInvokeLambda",
             code=aws_lambda.Code.from_asset(
-                path="lambda_/{}/NitroInvoke".format(params["application_type"])
+                path="./application/{}/lambda/NitroInvoke".format(application_type)
             ),
             handler="lambda_function.lambda_handler",
             runtime=aws_lambda.Runtime.PYTHON_3_11,
@@ -272,6 +302,9 @@ class NitroWalletStack(Stack):
             self, "KMS Key ID", value=encryption_key.key_id, description="KMS Key ID"
         )
 
+        CfnOutput(self, "RDS endpoint", value=rds_instance.db_instance_endpoint_address, description="RDS")
+        CfnOutput(self, "RDS port", value=rds_instance.db_instance_endpoint_port, description="RDS")
+
         NagSuppressions.add_resource_suppressions(
             construct=self,
             suppressions=[
@@ -303,6 +336,23 @@ class NitroWalletStack(Stack):
                     id="AwsSolutions-SMG4",
                     reason="Private key cannot be rotated",
                 ),
+                NagPackSuppression(
+                    id="AwsSolutions-RDS2",
+                    reason="Private key cannot be rotated",
+                ),
+                NagPackSuppression(
+                    id="AwsSolutions-RDS3",
+                    reason="Private key cannot be rotated",
+                ),
+                NagPackSuppression(
+                    id="AwsSolutions-RDS10",
+                    reason="Private key cannot be rotated",
+                ),
+                NagPackSuppression(
+                    id="AwsSolutions-RDS11",
+                    reason="Private key cannot be rotated",
+                ),
+
             ],
             apply_to_children=True,
         )

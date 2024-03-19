@@ -54,12 +54,13 @@ cat <<'EOF' > $VSOCK_PROXY_YAML
 allowlist:
 - {address: kms.${__REGION__}.amazonaws.com, port: 443}
 - {address: kms-fips${__REGION__}.amazonaws.com, port: 443}
-
+- {address: ${__RDS_ENDPOINT_ADDRESS__}, port: 5432}
 EOF
 
 systemctl enable --now docker
 systemctl enable --now nitro-enclaves-allocator.service
 systemctl enable --now nitro-enclaves-vsock-proxy.service
+
 
 cd /home/ec2-user
 
@@ -115,6 +116,31 @@ WantedBy=multi-user.target
 
 EOF
 
+
+  cat <<EOF >>/etc/systemd/system/nitro-enclaves-rds-proxy.service
+[Unit]
+Description=Nitro Enclaves vsock RDS Proxy
+After=network-online.target
+DefaultDependencies=no
+
+[Service]
+Type=simple
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vsock-proxy-rds
+ExecStart=/bin/bash -ce "exec /usr/bin/vsock-proxy 8001 ${__RDS_ENDPOINT_ADDRESS__} 5432 \
+                --config /etc/nitro_enclaves/vsock-proxy.yaml \
+                -w 5"
+Restart=always
+TimeoutSec=0
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+
+
+
   cat <<EOF >>/home/ec2-user/app/watchdog.py
 #!/usr/bin/env python3
 
@@ -158,7 +184,8 @@ def nitro_cli_run_call():
         "--cpu-count", "2",
         "--memory", "4320",
         "--eif-path", "/home/ec2-user/app/server/signing_server.eif",
-        "--enclave-cid", "16"
+        "--enclave-cid", "16",
+        "--debug-mode"
     ]
 
     print("enclave args: {}".format(subprocess_args))
@@ -193,13 +220,14 @@ EOF
 
 fi
 
-# start and register the nitro signing server service for autostart
-systemctl enable --now nitro-signing-server.service
-
 # create self signed cert for http server
 cd /etc/pki/tls/certs
 ./make-dummy-cert localhost.crt
 
 # docker over system process manager
 docker run -d --restart unless-stopped --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
+
+# start and register the nitro signing server service for autostart
+systemctl enable --now nitro-enclaves-rds-proxy.service
+systemctl enable --now nitro-signing-server.service
 --//--

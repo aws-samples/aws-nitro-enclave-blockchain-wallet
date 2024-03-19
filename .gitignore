@@ -13,5 +13,6 @@ workbook.txt
 .venv
 cdk.context.json
 application/eth1/enclave/kms/*
+application/eth1/enclave/proxy/*
 key
 application/eth2/

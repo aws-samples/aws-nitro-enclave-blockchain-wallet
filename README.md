@@ -1,27 +1,37 @@
-# AWS Nitro Enclave Blockchain Wallet
+# AWS Nitro Enclave Blockchain Wallet with Amazon Relational Database Service (RDS) access
 
-This project represents an example implementation of an AWS Nitro Enclave based blockchain account management solution a.k.a. a wallet.
+This project represents an example implementation of an AWS Nitro Enclave based blockchain account management solution
+a.k.a. a wallet.
 It's implemented in AWS Cloud Development Kit (CDK) v2 and Python.
 
 This repository contains all code artifacts for the following three blog posts:
+
 1. [AWS Nitro Enclaves for secure blockchain key management: Part 1](https://aws.amazon.com/blogs/database/part-1-aws-nitro-enclaves-for-secure-blockchain-key-management/)
 2. [AWS Nitro Enclaves for secure blockchain key management: Part 2](https://aws.amazon.com/blogs/database/part-2-aws-nitro-enclaves-for-secure-blockchain-key-management/)
 3. [AWS Nitro Enclaves for secure blockchain key management: Part 3](https://aws.amazon.com/blogs/database/part-3-aws-nitro-enclaves-for-secure-blockchain-key-management/)
 
-For an overview of how to design an AWS Nitro Enclave based blockchain application please have a look at the [first blog post](https://aws.amazon.com/blogs/database/part-1-aws-nitro-enclaves-for-secure-blockchain-key-management/).
+For an overview of how to design an AWS Nitro Enclave based blockchain application please have a look at
+the [first blog post](https://aws.amazon.com/blogs/database/part-1-aws-nitro-enclaves-for-secure-blockchain-key-management/).
 
-For a walkthrough of how to deploy and configure the Nitro Enclave based blockchain key management solution please refer to the [second blog post](https://aws.amazon.com/blogs/database/part-2-aws-nitro-enclaves-for-secure-blockchain-key-management/).
+For a walkthrough of how to deploy and configure the Nitro Enclave based blockchain key management solution please refer
+to
+the [second blog post](https://aws.amazon.com/blogs/database/part-2-aws-nitro-enclaves-for-secure-blockchain-key-management/).
 
-For a deep dive into Nitro Enclaves and the explanation of features like cryptographic attestation and additional information about the general architecture of a Nitro Enclaves-based Ethereum signing application please refer to [third blog post](https://aws.amazon.com/blogs/database/part-3-aws-nitro-enclaves-for-secure-blockchain-key-management/).
+For a deep dive into Nitro Enclaves and the explanation of features like cryptographic attestation and additional
+information about the general architecture of a Nitro Enclaves-based Ethereum signing application please refer
+to [third blog post](https://aws.amazon.com/blogs/database/part-3-aws-nitro-enclaves-for-secure-blockchain-key-management/).
 
-For an AWS Workshop Studio based walkthrough please refer to [Leveraging AWS Nitro Enclaves for Secure Blockchain Key Management](https://catalog.workshops.aws/nitrowallet).
+For an AWS Workshop Studio based walkthrough please refer
+to [Leveraging AWS Nitro Enclaves for Secure Blockchain Key Management](https://catalog.workshops.aws/nitrowallet).
 
 ## Architecture
 
 ### High Level
+
 ![](./docs/nitro_enclaves.drawio.png)
 
 ### Application
+
 ![](./docs/nitro_enclaves-Page-3.drawio.png)
 
 ## Deploying the solution with AWS CDK
@@ -35,7 +45,10 @@ changes, and deploying applications.
 This section shows how to prepare the environment for running CDK and the sample code. For this walkthrough, you must
 have the following prerequisites:
 
-* An [AWS account](https://signin.aws.amazon.com/signin?redirect_uri=https%3A%2F%2Fportal.aws.amazon.com%2Fbilling%2Fsignup%2Fresume&client_id=signup).
+*
+
+An [AWS account](https://signin.aws.amazon.com/signin?redirect_uri=https%3A%2F%2Fportal.aws.amazon.com%2Fbilling%2Fsignup%2Fresume&client_id=signup).
+
 * An IAM user with administrator access
 * [Configured AWS credentials](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html#getting_started_prerequisites)
 * Installed Node.js, Python 3, and pip. To install the example application:
@@ -49,10 +62,10 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
     ```bash
     npm install -g aws-cdk && cdk --version
     ```
-   
+
 2. Download the code from the GitHub repo and switch in the new directory:
     ```bash
-    git clone https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet.git && cd aws-nitro-enclave-blockchain-wallet
+    git clone --single-branch --branch feature/rds_integration https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet.git && cd aws-nitro-enclave-blockchain-wallet
     ```
 3. Install the dependencies using the Python package manager:
    ```bash
@@ -69,10 +82,53 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    ./scripts/build_kmstool_enclave_cli.sh
    ```
 
-6. Deploy the example code with the CDK CLI:
-    ```bash
-    cdk deploy devNitroWalletEth
-    ```
+6. Trigger the `viproxy` build:
+   ```bash
+   ./scripts/build_vsock_proxy.sh
+   ```
+
+7. Deploy the example code with the CDK CLI:
+   ```bash
+   cdk deploy devNitroWalletEth
+   ``` 
+
+8. The deployment will print out the `devNitroWalletEth.RDSendpoint` parameter. Copy the
+   value `devnitrowallet[...]us-east-1.rds.amazonaws.com` and
+   insert it at the `rds_endpoint_address` placeholder variable in the `nitro_wallet/nitro_wallet_stack.py` file.
+
+9. Re-deploy the enclave via:
+   ```bash
+   cdk deploy devNitroWalletEth
+   ```
+
+10. Get EC2 instance ids by providing the `devNitroWalletEth.ASGGroupName` from the `cdk deploy` output to the script:
+   ```bash
+   ./scripts/get_asg_instances.sh <asg group name>
+   ``` 
+
+11. Pick one of the two instance ids and connect to it via AWS System Manager Session Manager (SSM):
+   ```bash
+   aws ssm start-session --target <EC2 instance id> --region ${CDK_DEPLOY_REGION}
+   ```
+
+12. Change to `ec2-user` and attach to the enclave debug output:
+   ```bash
+   sudo su ec2-user
+   nitro-cli console --enclave-name signing_server
+   ```
+
+   You should see a similar output like this:
+   ```bash
+   viproxy: 2024/03/19 13:08:00 viproxy.go:98: Accepted incoming connection from 127.0.0.1:43970.
+   viproxy: 2024/03/19 13:08:00 viproxy.go:108: Dispatched forwarders for 127.0.0.1:5432 <-> vm(3):8001.
+   (1, 'master_key', 'Super important key')
+   (2, 'secondary_key', 'Less important key')
+   (3, 'backup_key', 'Somehow important key')
+   viproxy: 2024/03/19 13:08:00 viproxy.go:136: Closed connection tuple for 127.0.0.1:43970 <-> vm(3):8001.
+   ```
+
+   This tells you that the enclave was able to create a new database schema, inject 3 records and execute a select all. 
+
 
 ## KMS Key Policy
 
@@ -133,16 +189,20 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
 
 To leverage the provided `generate_key_policy.sh` script, a CDK output file needs to be provided.
 This file can be created by running the following command:
+
 ```bash
 cdk deploy devNitroWalletEth -O output.json
 ```
 
 After the `output.json` file has been created, the following command can be used to create the KMS key policy:
+
 ```bash
 ./script/generate_key_policy.sh ./output.json
 ```
 
-If the debug mode has been turned on by appending `--debug-mode` to the enclaves start sequence, the enclaves PCR0 value in the AWS KMS key policy needs to be updated to `000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`,
+If the debug mode has been turned on by appending `--debug-mode` to the enclaves start sequence, the enclaves PCR0 value
+in the AWS KMS key policy needs to be updated
+to `000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`,
 otherwise AWS KMS will return error code `400`.
 
 ## Key Generation and Requests
@@ -156,15 +216,18 @@ openssl ecparam -name secp256k1 -genkey -noout | openssl ec -text -noout > key
 cat key | grep priv -A 3 | tail -n +2 | tr -d '\n[:space:]:' | sed 's/^00//'
 ```
 
-Use the following command to calculate the corresponding public address for your temporary Ethereum key created in the previous step.
-[keccak-256sum](https://github.com/maandree/sha3sum) binary needs to be made available to execute the calculation step successfully.
+Use the following command to calculate the corresponding public address for your temporary Ethereum key created in the
+previous step.
+[keccak-256sum](https://github.com/maandree/sha3sum) binary needs to be made available to execute the calculation step
+successfully.
 
 ```bash
 cat key | grep pub -A 5 | tail -n +2 | tr -d '\n[:space:]:' | sed 's/^04//' > pub
 echo "0x$(cat pub | keccak-256sum -x -l | tr -d ' -' | tail -c 41)"
 ```
 
-Please be aware that the calculated public address does not comply with the valid mixed-case checksum encoding standard for Ethereum addresses specified in [EIP-55](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md).
+Please be aware that the calculated public address does not comply with the valid mixed-case checksum encoding standard
+for Ethereum addresses specified in [EIP-55](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md).
 
 ### Set Ethereum Key
 

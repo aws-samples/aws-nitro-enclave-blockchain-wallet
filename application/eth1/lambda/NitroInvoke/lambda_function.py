@@ -1,6 +1,3 @@
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-#  SPDX-License-Identifier: MIT-0
-
 import base64
 import json
 import logging
@@ -12,6 +9,7 @@ import boto3
 
 ssl_context = ssl.SSLContext()
 ssl_context.verify_mode = ssl.CERT_NONE
+# ssl.SSLContext.verify_mode = ssl.VerifyMode.CERT_OPTIONAL
 
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
@@ -32,7 +30,8 @@ def lambda_handler(event, context):
     example requests
     {
       "operation": "set_key",
-      "eth_key": "123"
+      "eth_key": "123",
+      "key_id": "0f24c87a-c8b5-4399-8f3f-95424a01be8a"
     }
 
     {
@@ -42,25 +41,26 @@ def lambda_handler(event, context):
     {
       "operation": "sign_transaction",
       "transaction_payload": {
-        "value": 0.01,
-        "to": "0xa5D3241A1591061F2a4bB69CA0215F66520E67cf",
+        "operation": "sign",
+        "amount": 0.01,
+        "dst_address": "0xa5D3241A1591061F2a4bB69CA0215F66520E67cf",
         "nonce": 0,
         "type": 2,
-        "chainId": 4,
-        "gas": 100000,
-        "maxFeePerGas": 100000000000,
-        "maxPriorityFeePerGas": 3000000000
+        "chainid": 4,
+        "max_fee_per_gas": 100000000000,
+        "max_priority_fee_per_gas": 3000000000
         }
     }
 
     """
-    nitro_instance_private_dns = os.getenv("NITRO_INSTANCE_PRIVATE_DNS")
-    secret_id = os.getenv("SECRET_ARN")
-    key_id = os.getenv("KEY_ARN")
+    _logger.debug("incoming event: {}".format(event))
 
-    if not (nitro_instance_private_dns and secret_id and key_id):
+    nitro_instance_private_dns = os.getenv("NITRO_INSTANCE_PRIVATE_DNS")
+    secret_id = os.getenv("SECRET_ID")
+
+    if not (nitro_instance_private_dns and secret_id):
         _logger.fatal(
-            "NITRO_INSTANCE_PRIVATE_DNS, SECRET_ARN and KEY_ARN environment variables need to be set"
+            "NITRO_INSTANCE_PRIVATE_DNS and SECRET_ID environment variable need to be set"
         )
 
     operation = event.get("operation")
@@ -68,11 +68,17 @@ def lambda_handler(event, context):
         _logger.fatal("request needs to define operation")
 
     if operation == "set_key":
+        # encryption_key_id -> KMS
+        # encrypted_key_id -> SecretsManager
         key_plaintext = event.get("eth_key")
+        kms_key_id = event.get("key_id")
+
+        if not (key_plaintext, kms_key_id):
+            _logger.fatal("set_key request requires eth_key and KMS key_id set")
 
         try:
             response = client_kms.encrypt(
-                KeyId=key_id, Plaintext=key_plaintext.encode()
+                KeyId=kms_key_id, Plaintext=key_plaintext.encode()
             )
         except Exception as e:
             raise Exception(
@@ -82,10 +88,12 @@ def lambda_handler(event, context):
         _logger.debug("response: {}".format(response))
         response_b64 = base64.standard_b64encode(response["CiphertextBlob"]).decode()
 
+        # response_plain = response["Plaintext"]
         try:
             response = client_secrets_manager.update_secret(
                 SecretId=secret_id,
                 # rely on the AWS managed key for std. storage
+                # KmsKeyId=kms_key_id,
                 SecretString=response_b64,
             )
         except Exception as e:
@@ -104,7 +112,7 @@ def lambda_handler(event, context):
         return response["SecretString"]
 
     # sign_transaction
-
+    # if not (payload.get("transaction_payload") and payload.get("encrypted_key_id")):
     elif operation == "sign_transaction":
         transaction_payload = event.get("transaction_payload")
 
@@ -112,6 +120,9 @@ def lambda_handler(event, context):
             raise Exception(
                 "sign_transaction requires transaction_payload and secret_id optionally"
             )
+
+        # if secret_id has been provided that it otherwise fallback to the std. secret
+        secret_id = event.get("secret_id", secret_id)
 
         https_nitro_client = client.HTTPSConnection(
             "{}:{}".format(nitro_instance_private_dns, 443), context=ssl_context
