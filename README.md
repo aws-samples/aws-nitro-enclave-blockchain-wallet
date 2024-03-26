@@ -1,4 +1,4 @@
-# AWS Nitro Enclave Blockchain Wallet
+# AWS Nitro Enclave Blockchain Wallet using Wireguard TUN Interface
 
 This project represents an example implementation of an AWS Nitro Enclave based blockchain account management solution a.k.a. a wallet.
 It's implemented in AWS Cloud Development Kit (CDK) v2 and Python.
@@ -23,6 +23,16 @@ For an AWS Workshop Studio based walkthrough please refer to [Leveraging AWS Nit
 
 ### Application
 ![](./docs/nitro_enclaves-Page-3.drawio.png)
+
+
+## Security Considerations 
+
+[//]: # (&#40;TODO&#41;)
+* Unlimited outbound communication
+* TLS termination inside the enclave based on ephemeral private/public key
+* DNS filtering on bind required e.g. whitelist certain domains otherwise traffic cannot be controlled at all
+* enclave can establish outbound conection and authenticate itself to a customer server 
+
 
 ## Deploying the solution with AWS CDK
 
@@ -64,14 +74,90 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    export CDK_DEPLOY_ACCOUNT=$(aws sts get-caller-identity | jq -r '.Account')
    ```
 
-5. Trigger the `kmstool_enclave_cli` build:
+**Disclaimer**
+Please be aware that the credentials handling in this readme does not reflect best practices. Credentials should never 
+be hardcoded in plaintext in source code, binaries or docker images. The purpose of this repo is about to showcase how
+a TUN interface can be created between the controlling docker container located on the parent instance and the enclave 
+itself. For production use-cases, the credentials should be encrypted and loaded into the enclave after it has been started 
+e.g. leveraging the `cryptographic attestation` mechanism natively securing the connection between Nitro Enclaves and KMS.
+
+
+5. Create a wireguard server and client config. You can do this via the `wg` cli or leverage [wireguardconfig.com](https://www.wireguardconfig.com/).
+
+6. Create the following environment variables for the private and public keys:
+    
+   ```bash
+   export WG_SERVER_PRIVATE_KEY=<server base64 private key>
+   export WG_SERVER_PUBLIC_KEY=<server base64 public key>
+   export WG_CLIENT_PRIVATE_KEY=<client base64 private key>
+   export WG_CLIENT_PUBLIC_KEY=<client base64 public key>
+   ```
+
+7. Trigger the wireguard binaries build:
+   ```bash
+   ./scripts/build_wireguard.sh
+   ```
+   
+8. Trigger the `kmstool_enclave_cli` build:
    ```bash
    ./scripts/build_kmstool_enclave_cli.sh
    ```
 
-6. Deploy the example code with the CDK CLI:
+9. Deploy the example code with the CDK CLI:
     ```bash
-    cdk deploy devNitroWalletEth
+    cdk deploy devNitroWireguard --verbose --require-approval=never
+    ```
+
+10. Get the EC2 instances associated with the Auto Scaling Group (ASG) by using the `devNitroWireguard.ASGGroupName` parameter from the `cdk deploy` output.
+    ```bash
+    ./scripts/get_asg_instances.sh <autoscaling group name>
+    ```
+
+11. Connect to the EC2 instance via AWS Systems Manager:
+    ```bash
+    aws ssm start-session --target <EC2 instance id> --region ${CDK_DEPLOY_REGION}
+    ```    
+
+12. Switch to `ec2-user` and attach to the `signing_server` enclave:
+    ```bash
+    sudo su ec2-user
+    ```
+    
+13. You should now be able to see incoming DNS requests from the enclave on `bind` running in the docker container (`wg_server`)
+    on the EC2 parent instance:
+    ```bash
+    docker logs -f wg_server
+    ```
+    
+    ```bash
+    26-Mar-2024 09:34:23.122 client @0x7ff7322840d0 203.0.113.2#56244 (aws.com): query: aws.com IN A + (203.0.113.1)
+    26-Mar-2024 09:34:23.122 client @0x7ff732285100 203.0.113.2#56244 (aws.com): query: aws.com IN AAAA + (203.0.113.1)
+    ```
+
+    You can attach to the enclave and see the ping command being executed towards the `aws.com` domain:
+    ```bash
+    nitro-cli console --enclave-name signing_server
+    ```
+
+    ```bash
+    + ping -c 4 aws.com
+    PING aws.com (13.32.99.108): 56 data bytes
+    64 bytes from 13.32.99.108: seq=0 ttl=245 time=2.979 ms
+    64 bytes from 13.32.99.108: seq=1 ttl=245 time=1.901 ms
+    64 bytes from 13.32.99.108: seq=2 ttl=245 time=2.155 ms
+    64 bytes from 13.32.99.108: seq=3 ttl=245 time=2.041 ms
+    
+    --- aws.com ping statistics ---
+    4 packets transmitted, 4 packets received, 0% packet loss
+    round-trip min/avg/max = 1.901/2.269/2.979 ms    
+    ```
+
+14. Clean up environment variables:
+    ```bash
+    unset WG_SERVER_PRIVATE_KEY
+    unset WG_SERVER_PUBLIC_KEY
+    unset WG_CLIENT_PRIVATE_KEY
+    unset WG_CLIENT_WG_SERVER_PUBLIC_KEY
     ```
 
 ## KMS Key Policy

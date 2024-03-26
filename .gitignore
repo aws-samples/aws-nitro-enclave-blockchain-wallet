@@ -14,4 +14,6 @@ workbook.txt
 cdk.context.json
 application/eth1/enclave/kms/*
 key
+*.key
 application/eth2/
+application/wireguard/third_party/*

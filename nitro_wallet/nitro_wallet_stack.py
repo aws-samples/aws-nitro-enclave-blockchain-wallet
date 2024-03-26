@@ -1,5 +1,8 @@
 #  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #  SPDX-License-Identifier: MIT-0
+import sys
+import os
+from git import Repo
 import aws_cdk
 from aws_cdk import (
     Stack,
@@ -33,21 +36,48 @@ class NitroWalletStack(Stack):
         encryption_key = aws_kms.Key(self, "EncryptionKey", enable_key_rotation=True)
         encryption_key.apply_removal_policy(aws_cdk.RemovalPolicy.DESTROY)
 
-        signing_server_image = aws_ecr_assets.DockerImageAsset(
-            self,
-            "EthereumSigningServerImage",
-            directory="./application/{}/server".format(application_type),
-            platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
-        )
+        if application_type == "eth1":
+            signing_server_image = aws_ecr_assets.DockerImageAsset(
+                self,
+                "EthereumSigningServerImage",
+                directory="./application/{}/server".format(application_type),
+                platform=aws_ecr_assets.Platform.LINUX_AMD64,
+                build_args={"REGION_ARG": self.region},
+            )
 
-        signing_enclave_image = aws_ecr_assets.DockerImageAsset(
-            self,
-            "EthereumSigningEnclaveImage",
-            directory="./application/{}/enclave".format(application_type),
-            platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
-        )
+            signing_enclave_image = aws_ecr_assets.DockerImageAsset(
+                self,
+                "EthereumSigningEnclaveImage",
+                directory="./application/{}/enclave".format(application_type),
+                platform=aws_ecr_assets.Platform.LINUX_AMD64,
+                build_args={"REGION_ARG": self.region},
+            )
+
+        elif application_type == "wireguard":
+
+            # git clone
+
+            signing_server_image = aws_ecr_assets.DockerImageAsset(
+                self,
+                "EthereumSigningServerImage",
+                directory="./application/{}/server".format(application_type),
+                file="./Dockerfile",
+                platform=aws_ecr_assets.Platform.LINUX_AMD64,
+                build_args={"REGION_ARG": self.region},
+            )
+
+            signing_enclave_image = aws_ecr_assets.DockerImageAsset(
+                self,
+                "EthereumSigningEnclaveImage",
+                directory="./application/{}/enclave".format(application_type),
+                file="./Dockerfile",
+                platform=aws_ecr_assets.Platform.LINUX_AMD64,
+                build_args={"REGION_ARG": self.region},
+            )
+
+        else:
+            print(f"application type ({application_type}) not supported - will exit")
+            sys.exit(1)
 
         vpc = aws_ec2.Vpc(
             self,
