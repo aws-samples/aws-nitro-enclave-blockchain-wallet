@@ -1,4 +1,4 @@
-# AWS Nitro Enclave Blockchain Wallet
+# AWS Nitro Enclave Blockchain Wallet using socat TUN Interface
 
 This project represents an example implementation of an AWS Nitro Enclave based blockchain account management solution a.k.a. a wallet.
 It's implemented in AWS Cloud Development Kit (CDK) v2 and Python.
@@ -62,17 +62,46 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    ```bash
    export CDK_DEPLOY_REGION=us-east-1
    export CDK_DEPLOY_ACCOUNT=$(aws sts get-caller-identity | jq -r '.Account')
-   ```
-
-5. Trigger the `kmstool_enclave_cli` build:
-   ```bash
-   ./scripts/build_kmstool_enclave_cli.sh
-   ```
-
-6. Deploy the example code with the CDK CLI:
+   ``` 
+   
+5. Deploy the example code with the CDK CLI:
     ```bash
-    cdk deploy devNitroWalletEth
+    cdk deploy devNitroWalletEth --verbose --require-approval=never
     ```
+
+6. Get the EC2 instances associated with the Auto Scaling Group (ASG) by using the devNitroWireguard.ASGGroupName parameter from the cdk deploy output.
+   ```bash
+   ./scripts/get_asg_instances.sh <autoscaling group name>
+   ```
+
+7. Connect to the EC2 instance via AWS Systems Manager:
+   ```bash
+   aws ssm start-session --target <EC2 instance id> --region ${CDK_DEPLOY_REGION}
+   ```
+
+8. Switch to ec2-user:
+   ```bash
+   sudo su ec2-user
+   ```
+
+9. Attach to the signing_server enclave (ensure that the enclave [has been deployed](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/blob/main/user_data/user_data.sh#L154) with `--debug-mode` flag). You should be able to see the ping statistics
+from inside the enclave towards `aws.com`:
+   ```bash
+   nitro-cli console --enclave-name signing_server
+   ```
+   
+   ```bash
+   + ping -c 4 aws.com
+   PING aws.com (13.32.99.108): 56 data bytes
+   64 bytes from 13.32.99.108: seq=0 ttl=245 time=2.979 ms
+   64 bytes from 13.32.99.108: seq=1 ttl=245 time=1.901 ms
+   64 bytes from 13.32.99.108: seq=2 ttl=245 time=2.155 ms
+   64 bytes from 13.32.99.108: seq=3 ttl=245 time=2.041 ms
+   
+   --- aws.com ping statistics ---
+   4 packets transmitted, 4 packets received, 0% packet loss
+   round-trip min/avg/max = 1.901/2.269/2.979 ms    
+   ```
 
 ## KMS Key Policy
 

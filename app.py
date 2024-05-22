@@ -14,7 +14,7 @@ app = App()
 NitroWalletStack(
     app,
     "devNitroWalletEth",
-    params={"deployment": "dev", "application_type": "eth1"},
+    params={"deployment": "dev", "application_type": "socat"},
     env=Environment(
         region=os.environ.get("CDK_DEPLOY_REGION"),
         account=os.environ.get("CDK_DEPLOY_ACCOUNT")

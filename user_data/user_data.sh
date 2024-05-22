@@ -158,7 +158,8 @@ def nitro_cli_run_call():
         "--cpu-count", "2",
         "--memory", "4320",
         "--eif-path", "/home/ec2-user/app/server/signing_server.eif",
-        "--enclave-cid", "16"
+        "--enclave-cid", "16",
+        "--debug-mode"
     ]
 
     print("enclave args: {}".format(subprocess_args))
@@ -201,5 +202,11 @@ cd /etc/pki/tls/certs
 ./make-dummy-cert localhost.crt
 
 # docker over system process manager
-docker run -d --restart unless-stopped --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
+
+#docker run -d --restart unless-stopped --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
+docker run -d --cap-add=NET_ADMIN --device /dev/net/tun --device /dev/vsock --restart unless-stopped --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
+
+# start and register the nitro signing server service for autostart
+#systemctl enable --now nitro-enclaves-rds-proxy.service
+systemctl enable --now nitro-signing-server.service
 --//--

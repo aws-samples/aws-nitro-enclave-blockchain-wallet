@@ -33,22 +33,6 @@ class NitroWalletStack(Stack):
         encryption_key = aws_kms.Key(self, "EncryptionKey", enable_key_rotation=True)
         encryption_key.apply_removal_policy(aws_cdk.RemovalPolicy.DESTROY)
 
-        signing_server_image = aws_ecr_assets.DockerImageAsset(
-            self,
-            "EthereumSigningServerImage",
-            directory="./application/{}/server".format(application_type),
-            platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
-        )
-
-        signing_enclave_image = aws_ecr_assets.DockerImageAsset(
-            self,
-            "EthereumSigningEnclaveImage",
-            directory="./application/{}/enclave".format(application_type),
-            platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
-        )
-
         vpc = aws_ec2.Vpc(
             self,
             "VPC",
@@ -124,9 +108,28 @@ class NitroWalletStack(Stack):
         # all members of the sg can access each others https ports (443)
         nitro_instance_sg.add_ingress_rule(nitro_instance_sg, aws_ec2.Port.tcp(443))
 
+        signing_server_image = aws_ecr_assets.DockerImageAsset(
+            self,
+            "EthereumSigningServerImage",
+            directory="./application/{}/server".format(application_type),
+            platform=aws_ecr_assets.Platform.LINUX_AMD64,
+            build_args={"REGION_ARG": self.region},
+        )
+
+        signing_enclave_image = aws_ecr_assets.DockerImageAsset(
+            self,
+            "EthereumSigningEnclaveImage",
+            directory="./application/{}/enclave".format(application_type),
+            platform=aws_ecr_assets.Platform.LINUX_AMD64,
+            # todo parameters can be replaced by SSM based solution using a two phase bootstrapping for valid AWS
+            #  credentials or parameters can be provided on the fly on a per request basis
+            build_args={"REGION_ARG": self.region},
+        )
+        # signing_enclave_image.node.add_dependency(rds_instance)
+
         # AMI
         amzn_linux = aws_ec2.MachineImage.latest_amazon_linux2()
-
+        # amzn_linux_23 = aws_ec2.MachineImage.latest_amazon_linux2023()
         # Instance Role and SSM Managed Policy
         role = aws_iam.Role(
             self,
@@ -160,6 +163,7 @@ class NitroWalletStack(Stack):
             "__REGION__": self.region,
         }
 
+        # with open("./user_data/user_data_23.sh") as f:
         with open("./user_data/user_data.sh") as f:
             user_data_raw = Fn.sub(f.read(), mappings)
 
