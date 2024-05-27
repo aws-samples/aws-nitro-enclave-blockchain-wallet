@@ -1,20 +1,20 @@
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-#  SPDX-License-Identifier: MIT-0
+# Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 FROM amazonlinux:2
 
-RUN yum install gcc python3 python3-devel net-tools -y
+RUN yum install gcc python3 python3-devel net-tools tar.x86_64 -y
 
-WORKDIR /app
+COPY dotnet-install.sh .
 
-COPY ./kms/kmstool_enclave_cli ./
-COPY ./kms/libnsm.so /usr/lib64/
-
-COPY requirements.txt ./
-RUN pip3 install -r /app/requirements.txt
+RUN chmod +x ./dotnet-install.sh
+RUN ./dotnet-install.sh --channel 6.0
 
 ARG REGION_ARG
 ENV REGION=$REGION_ARG
 
-COPY server.py ./
-CMD [ "python3", "/app/server.py" ]
+COPY ./netenclave/bin/ .
+COPY run.sh .
+COPY ./proxy/proxy .
+
+CMD [ "sh", "run.sh" ]

@@ -54,6 +54,8 @@ cat <<'EOF' > $VSOCK_PROXY_YAML
 allowlist:
 - {address: kms.${__REGION__}.amazonaws.com, port: 443}
 - {address: kms-fips${__REGION__}.amazonaws.com, port: 443}
+- {address: sqs.${__REGION__}.amazonaws.com, port: 443}
+- {address: 169.254.169.254, port: 80}
 
 EOF
 
@@ -76,7 +78,7 @@ set -e
 account_id=$( aws sts get-caller-identity | jq -r '.Account' )
 region=$( curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region' )
 aws ecr get-login-password --region $region | docker login --username AWS --password-stdin $account_id.dkr.ecr.$region.amazonaws.com
-docker pull ${__SIGNING_SERVER_IMAGE_URI__}
+
 docker pull ${__SIGNING_ENCLAVE_IMAGE_URI__}
 
 nitro-cli build-enclave --docker-uri ${__SIGNING_ENCLAVE_IMAGE_URI__} --output-file signing_server.eif
@@ -96,7 +98,8 @@ if [[ ! -f /etc/systemd/system/nitro-signing-server.service ]]; then
     debug_flag="--debug-mode"
   fi
 
-  cat <<'EOF' >>/etc/systemd/system/nitro-signing-server.service
+  
+cat <<'EOF' >>/etc/systemd/system/nitro-signing-server.service
 [Unit]
 Description=Nitro Enclaves Signing Server
 After=network-online.target
@@ -115,7 +118,51 @@ WantedBy=multi-user.target
 
 EOF
 
-  cat <<EOF >>/home/ec2-user/app/watchdog.py
+cat <<EOF >>/etc/systemd/system/nitro-enclaves-sqs-proxy.service
+[Unit]
+Description=Nitro Enclaves vsock SQS Proxy
+After=network-online.target
+DefaultDependencies=no
+
+[Service]
+Type=simple
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vsock-proxy-sqs
+ExecStart=/bin/bash -ce "exec /usr/bin/vsock-proxy 8001 sqs.${__REGION__}.amazonaws.com 443 \
+                --config /etc/nitro_enclaves/vsock-proxy.yaml \
+                -w 5"
+Restart=always
+TimeoutSec=0
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+
+cat <<EOF >>/etc/systemd/system/nitro-enclaves-imds-proxy.service
+[Unit]
+Description=Nitro Enclaves vsock IMDS Proxy
+After=network-online.target
+DefaultDependencies=no
+
+[Service]
+Type=simple
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vsock-proxy-imds
+ExecStart=/bin/bash -ce "exec /usr/bin/vsock-proxy 8002 169.254.169.254 80 \
+                --config /etc/nitro_enclaves/vsock-proxy.yaml \
+                -w 5"
+Restart=always
+TimeoutSec=0
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+
+ cat <<EOF >>/home/ec2-user/app/watchdog.py
 #!/usr/bin/env python3
 
 import json
@@ -156,9 +203,10 @@ def nitro_cli_run_call():
         "/bin/nitro-cli",
         "run-enclave",
         "--cpu-count", "2",
-        "--memory", "4320",
+        "--memory", "5120",
         "--eif-path", "/home/ec2-user/app/server/signing_server.eif",
-        "--enclave-cid", "16"
+        "--enclave-cid", "16",
+        "--debug-mode"
     ]
 
     print("enclave args: {}".format(subprocess_args))
@@ -191,15 +239,16 @@ EOF
 
   chmod +x /home/ec2-user/app/watchdog.py
 
+
 fi
 
 # start and register the nitro signing server service for autostart
+systemctl enable --now nitro-enclaves-sqs-proxy.service
+systemctl enable --now nitro-enclaves-imds-proxy.service
 systemctl enable --now nitro-signing-server.service
 
 # create self signed cert for http server
-cd /etc/pki/tls/certs
-./make-dummy-cert localhost.crt
+# cd /etc/pki/tls/certs
+# ./make-dummy-cert localhost.crt
 
-# docker over system process manager
-docker run -d --restart unless-stopped --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
 --//--
