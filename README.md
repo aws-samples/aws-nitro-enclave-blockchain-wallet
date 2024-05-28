@@ -64,140 +64,46 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    export CDK_DEPLOY_ACCOUNT=$(aws sts get-caller-identity | jq -r '.Account')
    ```
 
-5. Trigger the `kmstool_enclave_cli` build:
+5. Trigger the `vsock-proxy` build:
    ```bash
-   ./scripts/build_kmstool_enclave_cli.sh
+   ./scripts/build_vsock_proxy.sh
    ```
 
-6. Deploy the example code with the CDK CLI:
+6. Build the dotnet app:
+   ```bash
+   ./scripts/build_dotnet_app.sh
+   ```
+
+7. Deploy the example code with the CDK CLI:
     ```bash
     cdk deploy devNitroWalletEth
     ```
 
-## KMS Key Policy
+8. Connect to the EC2 instance via AWS Systems Manager (make sure you have the [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) installed):
+    ```bash
+    aws ssm start-session --target <EC2 instance id> --region ${CDK_DEPLOY_REGION}
+    ```
 
-```json5
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "Enable decrypt from enclave",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": <devNitroWalletEth.EC2InstanceRoleARN>
-      },
-      "Action": "kms:Decrypt",
-      "Resource": "*",
-      "Condition": {
-        "StringEqualsIgnoreCase": {
-          "kms:RecipientAttestation:ImageSha384": <PCR0_VALUE_FROM_EIF_BUILD>
-        }
-      }
-    },
-    {
-      "Sid": "Enable encrypt from lambda",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": <devNitroWalletEth.LambdaExecutionRoleARN>
-      },
-      "Action": "kms:Encrypt",
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": <KMS_ADMINISTRATOR_ROLE_ARN>
-      },
-      "Action": [
-        "kms:Create*",
-        "kms:Describe*",
-        "kms:Enable*",
-        "kms:List*",
-        "kms:Put*",
-        "kms:Update*",
-        "kms:Revoke*",
-        "kms:Disable*",
-        "kms:Get*",
-        "kms:Delete*",
-        "kms:ScheduleKeyDeletion",
-        "kms:CancelKeyDeletion",
-        "kms:GenerateDataKey",
-        "kms:TagResource",
-        "kms:UntagResource"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-```
+9. Switch to ec2-user:
+    ```bash
+    sudo su ec2-user
+    ```
 
-To leverage the provided `generate_key_policy.sh` script, a CDK output file needs to be provided.
-This file can be created by running the following command:
-```bash
-cdk deploy devNitroWalletEth -O output.json
-```
+10. Attach to the signing_server enclave (ensure that the enclave has been deployed with --debug-mode flag). You should see the logs showing the source and target SQS queues.
+    ```bash
+    nitro-cli console --enclave-name signing_server
+    ```
 
-After the `output.json` file has been created, the following command can be used to create the KMS key policy:
-```bash
-./scripts/generate_key_policy.sh ./output.json
-```
+11. Go to SQS on the AWS Console and send a message in the Source_Queue.
 
-If the debug mode has been turned on by appending `--debug-mode` to the enclaves start sequence, the enclaves PCR0 value in the AWS KMS key policy needs to be updated to `000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`,
-otherwise AWS KMS will return error code `400`.
+![](./docs/sqs_source_queue.png)
 
-## Key Generation and Requests
+12. Observe the logs on the enclave console, you will see the message being picked by the enclave.
 
-### Create Ethereum Key
+13. Switch back to SQS and poll for messages on the Target_Queue, you will see a response message coming from the enclave.
 
-Use the command below to create a temporary Ethereum private key.
+![](./docs/sqs_target_queue.png)
 
-```bash
-openssl ecparam -name secp256k1 -genkey -noout | openssl ec -text -noout > key
-cat key | grep priv -A 3 | tail -n +2 | tr -d '\n[:space:]:' | sed 's/^00//'
-```
-
-Use the following command to calculate the corresponding public address for your temporary Ethereum key created in the previous step.
-[keccak-256sum](https://github.com/maandree/sha3sum) binary needs to be made available to execute the calculation step successfully.
-
-```bash
-cat key | grep pub -A 5 | tail -n +2 | tr -d '\n[:space:]:' | sed 's/^04//' > pub
-echo "0x$(cat pub | keccak-256sum -x -l | tr -d ' -' | tail -c 41)"
-```
-
-Please be aware that the calculated public address does not comply with the valid mixed-case checksum encoding standard for Ethereum addresses specified in [EIP-55](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md).
-
-### Set Ethereum Key
-
-Replace the Ethereum key placeholder in the JSON request below and use the request to encrypt and store the Ethereum key
-via the Lambda `test` console:
-
-```json
-{
-  "operation": "set_key",
-  "eth_key": <ethereum_key_placeholder>
-}
-```
-
-### Sign EIP-1559 Transaction
-
-Use the request below to sign an Ethereum EIP-1559 transaction with the saved Ethereum key using the Labda `test`
-console:
-
-```json
-{
-  "operation": "sign_transaction",
-  "transaction_payload": {
-    "value": 0.01,
-    "to": "0xa5D3241A1591061F2a4bB69CA0215F66520E67cf",
-    "nonce": 0,
-    "type": 2,
-    "chainId": 4,
-    "gas": 100000,
-    "maxFeePerGas": 100000000000,
-    "maxPriorityFeePerGas": 3000000000
-  }
-}
-```
 
 ## Cleaning up
 
