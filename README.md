@@ -100,6 +100,8 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
 
 12. Observe the logs on the enclave console, you will see the message being picked by the enclave.
 
+![](./docs/enclave_console.png)
+
 13. Switch back to SQS and poll for messages on the Target_Queue, you will see a response message coming from the enclave.
 
 ![](./docs/sqs_target_queue.png)
