@@ -64,7 +64,7 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    export CDK_DEPLOY_ACCOUNT=$(aws sts get-caller-identity | jq -r '.Account')
    ```
 
-5. Trigger the `kmstool_enclave_cli` build:
+5. Create the self-signed certificate:
    ```bash
    ./scripts/create_certificate.sh
    ```
