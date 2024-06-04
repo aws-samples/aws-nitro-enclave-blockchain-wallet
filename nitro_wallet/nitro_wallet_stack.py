@@ -205,6 +205,13 @@ class NitroWalletStack(Stack):
             description="ASG Group Name",
         )
 
+        CfnOutput(
+            self,
+            "NLB DNS",
+            value=nitro_nlb.load_balancer_dns_name,
+            description="DNS of Network Load Balancer",
+        )
+
         NagSuppressions.add_resource_suppressions(
             construct=self,
             suppressions=[

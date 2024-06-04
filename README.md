@@ -66,7 +66,7 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
 
 5. Trigger the `kmstool_enclave_cli` build:
    ```bash
-   ./scripts/build_kmstool_enclave_cli.sh
+   ./scripts/create_certificate.sh
    ```
 
 6. Deploy the example code with the CDK CLI:
@@ -74,130 +74,14 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
     cdk deploy devNitroWalletEth
     ```
 
-## KMS Key Policy
+7. Once the CDK deployment is successfully completed, copy the NLB DNS name from the Outputs section, and open it in a web browser. You will see a warning due to the self-signed certificate, which is expected. Accept and continue.
 
-```json5
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "Enable decrypt from enclave",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": <devNitroWalletEth.EC2InstanceRoleARN>
-      },
-      "Action": "kms:Decrypt",
-      "Resource": "*",
-      "Condition": {
-        "StringEqualsIgnoreCase": {
-          "kms:RecipientAttestation:ImageSha384": <PCR0_VALUE_FROM_EIF_BUILD>
-        }
-      }
-    },
-    {
-      "Sid": "Enable encrypt from lambda",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": <devNitroWalletEth.LambdaExecutionRoleARN>
-      },
-      "Action": "kms:Encrypt",
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": <KMS_ADMINISTRATOR_ROLE_ARN>
-      },
-      "Action": [
-        "kms:Create*",
-        "kms:Describe*",
-        "kms:Enable*",
-        "kms:List*",
-        "kms:Put*",
-        "kms:Update*",
-        "kms:Revoke*",
-        "kms:Disable*",
-        "kms:Get*",
-        "kms:Delete*",
-        "kms:ScheduleKeyDeletion",
-        "kms:CancelKeyDeletion",
-        "kms:GenerateDataKey",
-        "kms:TagResource",
-        "kms:UntagResource"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-```
+![](./docs/cert_accept_risk.png)
 
-To leverage the provided `generate_key_policy.sh` script, a CDK output file needs to be provided.
-This file can be created by running the following command:
-```bash
-cdk deploy devNitroWalletEth -O output.json
-```
+8. You should be able to see the web page being served from inside the Nitro enclave.
 
-After the `output.json` file has been created, the following command can be used to create the KMS key policy:
-```bash
-./scripts/generate_key_policy.sh ./output.json
-```
+![](./docs/web_page.png)
 
-If the debug mode has been turned on by appending `--debug-mode` to the enclaves start sequence, the enclaves PCR0 value in the AWS KMS key policy needs to be updated to `000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`,
-otherwise AWS KMS will return error code `400`.
-
-## Key Generation and Requests
-
-### Create Ethereum Key
-
-Use the command below to create a temporary Ethereum private key.
-
-```bash
-openssl ecparam -name secp256k1 -genkey -noout | openssl ec -text -noout > key
-cat key | grep priv -A 3 | tail -n +2 | tr -d '\n[:space:]:' | sed 's/^00//'
-```
-
-Use the following command to calculate the corresponding public address for your temporary Ethereum key created in the previous step.
-[keccak-256sum](https://github.com/maandree/sha3sum) binary needs to be made available to execute the calculation step successfully.
-
-```bash
-cat key | grep pub -A 5 | tail -n +2 | tr -d '\n[:space:]:' | sed 's/^04//' > pub
-echo "0x$(cat pub | keccak-256sum -x -l | tr -d ' -' | tail -c 41)"
-```
-
-Please be aware that the calculated public address does not comply with the valid mixed-case checksum encoding standard for Ethereum addresses specified in [EIP-55](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md).
-
-### Set Ethereum Key
-
-Replace the Ethereum key placeholder in the JSON request below and use the request to encrypt and store the Ethereum key
-via the Lambda `test` console:
-
-```json
-{
-  "operation": "set_key",
-  "eth_key": <ethereum_key_placeholder>
-}
-```
-
-### Sign EIP-1559 Transaction
-
-Use the request below to sign an Ethereum EIP-1559 transaction with the saved Ethereum key using the Labda `test`
-console:
-
-```json
-{
-  "operation": "sign_transaction",
-  "transaction_payload": {
-    "value": 0.01,
-    "to": "0xa5D3241A1591061F2a4bB69CA0215F66520E67cf",
-    "nonce": 0,
-    "type": 2,
-    "chainId": 4,
-    "gas": 100000,
-    "maxFeePerGas": 100000000000,
-    "maxPriorityFeePerGas": 3000000000
-  }
-}
-```
 
 ## Cleaning up
 
