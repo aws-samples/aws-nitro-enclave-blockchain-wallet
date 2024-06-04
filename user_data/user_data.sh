@@ -197,9 +197,9 @@ fi
 systemctl enable --now nitro-signing-server.service
 
 # create self signed cert for http server
-cd /etc/pki/tls/certs
-./make-dummy-cert localhost.crt
+# cd /etc/pki/tls/certs
+# ./make-dummy-cert localhost.crt
 
 # docker over system process manager
-docker run -d --restart unless-stopped --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
+docker run -d --restart unless-stopped --name http_server -p 4443:4443 --security-opt seccomp=unconfined ${__SIGNING_SERVER_IMAGE_URI__}
 --//--
