@@ -1,4 +1,4 @@
-# AWS Nitro Enclave Blockchain Wallet
+# AWS Nitro Enclave Blockchain Wallet and Advanced Networking Patterns
 
 This project represents an example implementation of an AWS Nitro Enclave based blockchain account management solution a.k.a. a wallet.
 It's implemented in AWS Cloud Development Kit (CDK) v2 and Python.
@@ -15,6 +15,13 @@ For a walkthrough of how to deploy and configure the Nitro Enclave based blockch
 For a deep dive into Nitro Enclaves and the explanation of features like cryptographic attestation and additional information about the general architecture of a Nitro Enclaves-based Ethereum signing application please refer to [third blog post](https://aws.amazon.com/blogs/database/part-3-aws-nitro-enclaves-for-secure-blockchain-key-management/).
 
 For an AWS Workshop Studio based walkthrough please refer to [Leveraging AWS Nitro Enclaves for Secure Blockchain Key Management](https://catalog.workshops.aws/nitrowallet).
+
+For Nitro Enclave advanced networking patterns, please refer the following:
+1. [Wireguard TUN Interface](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/tree/feature/wireguard)
+2. [Socat TUN Interface](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/tree/feature/socat_tun)
+3. [HTTPS Outbound](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/tree/feature/rds_integration)
+4. [HTTPS Inbound](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/tree/feature/https_web_server)
+5. [SQS Queue Integration](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/tree/feature/dotnet_sqs_integration)
 
 ## Architecture
 
