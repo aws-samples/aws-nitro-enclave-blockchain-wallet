@@ -201,5 +201,5 @@ cd /etc/pki/tls/certs
 ./make-dummy-cert localhost.crt
 
 # docker over system process manager
-docker run -d --restart unless-stopped --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
+docker run -d --restart unless-stopped --security-opt seccomp=unconfined --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
 --//--
