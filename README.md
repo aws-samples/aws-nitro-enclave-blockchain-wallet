@@ -69,7 +69,10 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    ```bash
    export CDK_DEPLOY_REGION=us-east-1
    export CDK_DEPLOY_ACCOUNT=$(aws sts get-caller-identity | jq -r '.Account')
+   export CDK_APPLICATION_TYPE=eth1
+   export CDK_PREFIX=dev
    ```
+   You can set the ```CDK_PREFIX``` variable as per your preference.
 
 5. Trigger the `kmstool_enclave_cli` build:
    ```bash
@@ -78,7 +81,7 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
 
 6. Deploy the example code with the CDK CLI:
     ```bash
-    cdk deploy devNitroWalletEth
+    cdk deploy ${CDK_PREFIX}NitroWalletEth
     ```
 
 ## KMS Key Policy

@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.002.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "application", "application", "{670158FC-F3C1-4C86-A367-5B118B69A5C6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "eth1", "eth1", "{528B8CE0-F256-48A0-AFC7-6F9086EA3950}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "enclave", "enclave", "{C16BF89C-47D7-4ED8-93EF-B468A1E5AF9D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "netenclave", "application\eth1\enclave\netenclave\netenclave.csproj", "{A831467A-C068-4215-BAD5-1753EC30322D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A831467A-C068-4215-BAD5-1753EC30322D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A831467A-C068-4215-BAD5-1753EC30322D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A831467A-C068-4215-BAD5-1753EC30322D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A831467A-C068-4215-BAD5-1753EC30322D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{528B8CE0-F256-48A0-AFC7-6F9086EA3950} = {670158FC-F3C1-4C86-A367-5B118B69A5C6}
+		{C16BF89C-47D7-4ED8-93EF-B468A1E5AF9D} = {528B8CE0-F256-48A0-AFC7-6F9086EA3950}
+		{A831467A-C068-4215-BAD5-1753EC30322D} = {C16BF89C-47D7-4ED8-93EF-B468A1E5AF9D}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E6856CE4-E600-4902-A809-31197510D6A6}
+	EndGlobalSection
+EndGlobal

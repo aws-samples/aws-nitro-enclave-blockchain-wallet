@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "dgSpecHash": "elBUL8JncOA=",
+  "success": true,
+  "projectFilePath": "/Users/roywrito/Documents/Development/David-Paul-Dornseifer/aws-nitro-enclave-blockchain-wallet/code/aws-nitro-enclave-blockchain-wallet/application/eth1/enclave/netenclave/netenclave.csproj",
+  "expectedPackageFiles": [
+    "/Users/roywrito/.nuget/packages/awssdk.core/3.7.304.1/awssdk.core.3.7.304.1.nupkg.sha512",
+    "/Users/roywrito/.nuget/packages/awssdk.sqs/3.7.301.4/awssdk.sqs.3.7.301.4.nupkg.sha512",
+    "/Users/roywrito/.nuget/packages/microsoft.netcore.app.ref/6.0.30/microsoft.netcore.app.ref.6.0.30.nupkg.sha512",
+    "/Users/roywrito/.nuget/packages/microsoft.aspnetcore.app.ref/6.0.30/microsoft.aspnetcore.app.ref.6.0.30.nupkg.sha512",
+    "/Users/roywrito/.nuget/packages/microsoft.netcore.app.host.osx-x64/6.0.30/microsoft.netcore.app.host.osx-x64.6.0.30.nupkg.sha512"
+  ],
+  "logs": []
+}
