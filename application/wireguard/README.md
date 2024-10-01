@@ -6,7 +6,7 @@ Wireguard is a communication protocol and open-source software that implements e
 
 ## Architecture
 
-![](./docs/wireguard_architecture.png)
+![](../../docs/wireguard_architecture.png)
 
 
 ## Security Considerations 
