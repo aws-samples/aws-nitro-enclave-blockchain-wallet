@@ -5,7 +5,7 @@ This pattern represents an example implementation of AWS Nitro Enclave with Soca
 
 ## Architecture
 
-![](./docs/socat_architecture.png)
+![](../../docs/socat_architecture.png)
 
 
 ## Deploying the solution with AWS CDK

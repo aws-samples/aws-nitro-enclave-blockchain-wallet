@@ -5,7 +5,7 @@ This pattern represents an example implementation of outbound communication from
 
 ## Architecture
 
-![](./docs/rds_integration.png)
+![](../../docs/rds_integration.png)
 
 
 ## Deploying the solution with AWS CDK

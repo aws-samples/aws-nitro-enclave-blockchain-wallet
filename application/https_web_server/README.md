@@ -1,11 +1,11 @@
-# AWS Nitro Enclave with Amazon Simple Queue Service (Amazon SQS)
+# AWS Nitro Enclave with TLS Termination
 
-This pattern represents an example implementation of an AWS Nitro Enclave processing messages from an Amazon SQS queue.
+This pattern represents an example implementation of TLS termination within an AWS Nitro Enclave, i.e., serving an HTTPS web server from within an enclave.
 
 
 ## Architecture
 
-![](./docs/dotnet_sqs_integration.png)
+![](../../docs/https_web_server.png)
 
 
 ## Deploying the solution with AWS CDK
@@ -46,52 +46,28 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    ```bash
    export CDK_DEPLOY_REGION=us-east-1
    export CDK_DEPLOY_ACCOUNT=$(aws sts get-caller-identity | jq -r '.Account')
-   export CDK_APPLICATION_TYPE=dotnet_sqs_integration
+   export CDK_APPLICATION_TYPE=https_web_server
    export CDK_PREFIX=dev
    ```
    You can set the ```CDK_PREFIX``` variable as per your preference.
 
-5. Trigger the `vsock-proxy` build:
+5. Create the self-signed certificate:
    ```bash
-   ./scripts/build_vsock_proxy.sh
+   ./scripts/create_certificate.sh
    ```
 
-6. Build the dotnet app:
-   ```bash
-   ./scripts/build_dotnet_app.sh
-   ```
-
-7. Deploy the example code with the CDK CLI:
+6. Deploy the example code with the CDK CLI:
     ```bash
-    cdk deploy ${CDK_PREFIX}NitroDotnetSqsIntegration
+    cdk deploy ${CDK_PREFIX}NitroHttpsWebServer
     ```
 
-8. Navigate to the EC2 console, copy the instance id of the EC2 instance, and connect to the instance via AWS Systems Manager (make sure you have the [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) installed):
-    ```bash
-    aws ssm start-session --target <EC2 instance id> --region ${CDK_DEPLOY_REGION}
-    ```
+7. Once the CDK deployment is successfully completed, copy the NLB DNS name from the Outputs section, and open it in a web browser. You will see a warning due to the self-signed certificate, which is expected. Accept and continue.
 
-9. Switch to ec2-user:
-    ```bash
-    sudo su ec2-user
-    ```
+![](./docs/cert_accept_risk.png)
 
-10. Attach to the signing_server enclave (ensure that the enclave has been deployed with --debug-mode flag). You should see the logs showing the source and target SQS queues.
-    ```bash
-    nitro-cli console --enclave-name signing_server
-    ```
+8. You should be able to see the web page being served from inside the Nitro enclave.
 
-11. Go to SQS on the AWS Console and send a message in the Source_Queue.
-
-![](./docs/sqs_source_queue.png)
-
-12. Observe the logs on the enclave console, you will see the message being picked by the enclave.
-
-![](./docs/enclave_console.png)
-
-13. Switch back to SQS and poll for messages on the Target_Queue, you will see a response message coming from the enclave.
-
-![](./docs/sqs_target_queue.png)
+![](./docs/web_page.png)
 
 
 ## Cleaning up
