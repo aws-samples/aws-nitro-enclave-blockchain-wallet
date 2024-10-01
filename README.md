@@ -16,7 +16,7 @@ For a deep dive into Nitro Enclaves and the explanation of features like cryptog
 
 For an AWS Workshop Studio based walkthrough please refer to [Leveraging AWS Nitro Enclaves for Secure Blockchain Key Management](https://catalog.workshops.aws/nitrowallet).
 
-For Nitro Enclave advanced networking patterns, please refer to the application folder.
+For Nitro Enclave advanced networking patterns, please refer to the respective application folders.
 1. [Wireguard TUN Interface](./application/wireguard/README.md)
 2. [Socat TUN Interface](./application/socat/README.md)
 3. [HTTPS Outbound](./application/rds_integration/README.md)
