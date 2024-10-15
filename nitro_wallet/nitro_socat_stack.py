@@ -164,7 +164,7 @@ class NitroSocatStack(Stack):
         }
 
         # with open("./user_data/user_data_23.sh") as f:
-        with open("./{}/user_data/user_data.sh".format(application_type)) as f:
+        with open("./application/{}/user_data/user_data.sh".format(application_type)) as f:
             user_data_raw = Fn.sub(f.read(), mappings)
 
         signing_enclave_image.repository.grant_pull(role)

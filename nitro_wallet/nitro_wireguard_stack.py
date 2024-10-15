@@ -187,7 +187,7 @@ class NitroWireguardStack(Stack):
             "__REGION__": self.region,
         }
 
-        with open("./{}/user_data/user_data.sh".format(application_type)) as f:
+        with open("./application/{}/user_data/user_data.sh".format(application_type)) as f:
             user_data_raw = Fn.sub(f.read(), mappings)
 
         signing_enclave_image.repository.grant_pull(role)
