@@ -20,6 +20,7 @@ export GODEBUG=netdns=go+2
 #      endpoint 0.0.0.2:10000
 
 ./wg-client &
+sleep 60
 ip link set up dev wg0
 
 echo "nameserver 203.0.113.1" |  resolvconf -a tun.wg0 -m 0 -x

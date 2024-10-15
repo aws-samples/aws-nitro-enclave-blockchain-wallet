@@ -107,11 +107,11 @@ cd $WIREGUARD_VSOCK_FOLDER
 
 # for corporate networks disable GOPROXY
 #export GOPROXY=direct
-#export CGO_ENABLED=0
+export CGO_ENABLED=0
 export GOOS=linux
 export GOARCH=amd64
 export GO111MODULE=on
-go mod tidy
+# go mod tidy
 go build -v -o wireguard-go-vsock main.go
 go build -v -o wg-client client.go
 

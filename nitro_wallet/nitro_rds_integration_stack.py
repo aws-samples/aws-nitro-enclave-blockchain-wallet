@@ -190,7 +190,7 @@ class NitroRdsIntegrationStack(Stack):
             "__REGION__": self.region,
         }
 
-        with open("./user_data/{}/user_data.sh".format(application_type)) as f:
+        with open("./{}/user_data/user_data.sh".format(application_type)) as f:
             user_data_raw = Fn.sub(f.read(), mappings)
 
         signing_enclave_image.repository.grant_pull(role)
@@ -249,46 +249,11 @@ class NitroRdsIntegrationStack(Stack):
             ],
         )
 
-        invoke_lambda = aws_lambda.Function(
-            self,
-            "NitroInvokeLambda",
-            code=aws_lambda.Code.from_asset(
-                path="lambda_/{}/NitroInvoke".format(application_type)
-            ),
-            handler="lambda_function.lambda_handler",
-            runtime=aws_lambda.Runtime.PYTHON_3_11,
-            timeout=Duration.minutes(2),
-            memory_size=256,
-            environment={
-                "LOG_LEVEL": "DEBUG",
-                "NITRO_INSTANCE_PRIVATE_DNS": nitro_nlb.load_balancer_dns_name,
-                "SECRET_ARN": encrypted_key.secret_full_arn,
-                "KEY_ARN": encryption_key.key_arn,
-            },
-            vpc=vpc,
-            vpc_subnets=aws_ec2.SubnetSelection(
-                subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS
-            ),
-            security_groups=[nitro_instance_sg],
-        )
-
-        encrypted_key.grant_write(invoke_lambda)
-        # if productive case, lambda is just allowed to set the secret key value
-        if params.get("deployment") == "dev":
-            encrypted_key.grant_read(invoke_lambda)
-
         CfnOutput(
             self,
             "EC2 Instance Role ARN",
             value=role.role_arn,
             description="EC2 Instance Role ARN",
-        )
-
-        CfnOutput(
-            self,
-            "Lambda Execution Role ARN",
-            value=invoke_lambda.role.role_arn,
-            description="Lambda Execution Role ARN",
         )
 
         CfnOutput(
