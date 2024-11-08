@@ -1,7 +1,7 @@
 # secure_server.py
 
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from ssl import PROTOCOL_TLS_SERVER, SSLContext
+from ssl import PROTOCOL_TLS_SERVER, SSLContext, TLSVersion
 
 DUMMY_RESPONSE = b"""
 <html>
@@ -28,6 +28,7 @@ class MyHandler(SimpleHTTPRequestHandler):
         self.wfile.write(DUMMY_RESPONSE)
 
 ssl_context = SSLContext(PROTOCOL_TLS_SERVER)
+ssl_context.minimum_version = TLSVersion.TLSv1_2
 ssl_context.load_cert_chain("/app/certs/cert.pem", "/app/certs/key.pem")
 server = HTTPServer(("", 9001), MyHandler)
 server.socket = ssl_context.wrap_socket(server.socket, server_side=True)

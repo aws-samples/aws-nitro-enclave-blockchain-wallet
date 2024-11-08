@@ -17,4 +17,4 @@ echo "options single-request" >/run/resolvconf/resolv.conf
 echo "nameserver 1.1.1.1" >>/run/resolvconf/resolv.conf
 
 ping -c 4 aws.com
-iperf3 -s -f K
+# iperf3 -s -f K
