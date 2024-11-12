@@ -207,6 +207,7 @@ class NitroRdsIntegrationStack(Stack):
             block_devices=[block_device],
             role=role,
             security_group=nitro_instance_sg,
+            http_put_response_hop_limit=3
         )
         nitro_launch_template.node.add_dependency(rds_instance)
 

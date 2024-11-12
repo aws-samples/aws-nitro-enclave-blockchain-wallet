@@ -74,8 +74,10 @@ if [[ ! -d ./app/server ]]; then
 set -x
 set -e
 
-account_id=$( aws sts get-caller-identity | jq -r '.Account' )
-region=$( curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region' )
+token=$( curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"` )
+account_id=$( curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.accountId' )
+region=$( curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/region )
+
 aws ecr get-login-password --region $region | docker login --username AWS --password-stdin $account_id.dkr.ecr.$region.amazonaws.com
 docker pull ${__SIGNING_SERVER_IMAGE_URI__}
 docker pull ${__SIGNING_ENCLAVE_IMAGE_URI__}
