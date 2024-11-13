@@ -4,6 +4,7 @@ __pycache__
 .pytest_cache
 .env
 *.egg-info
+.DS_Store
 
 # CDK asset staging directory
 .cdk.staging
@@ -13,5 +14,9 @@ workbook.txt
 .venv
 cdk.context.json
 application/eth1/enclave/kms/*
+pplication/eth1/enclave/proxy/*
 key
 application/eth2/
+*.key
+application/wireguard/third_party/*
+application/wireguard/enclave/kms/*

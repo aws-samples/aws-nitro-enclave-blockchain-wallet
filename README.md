@@ -16,12 +16,12 @@ For a deep dive into Nitro Enclaves and the explanation of features like cryptog
 
 For an AWS Workshop Studio based walkthrough please refer to [Leveraging AWS Nitro Enclaves for Secure Blockchain Key Management](https://catalog.workshops.aws/nitrowallet).
 
-For Nitro Enclave advanced networking patterns, please refer the following:
-1. [Wireguard TUN Interface](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/tree/feature/wireguard)
-2. [Socat TUN Interface](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/tree/feature/socat_tun)
-3. [HTTPS Outbound](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/tree/feature/rds_integration)
-4. [HTTPS Inbound](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/tree/feature/https_web_server)
-5. [SQS Queue Integration](https://github.com/aws-samples/aws-nitro-enclave-blockchain-wallet/tree/feature/dotnet_sqs_integration)
+For Nitro Enclave advanced networking patterns, please refer to the respective application folders.
+1. [Wireguard TUN Interface](./application/wireguard/README.md)
+2. [Socat TUN Interface](./application/socat/README.md)
+3. [HTTPS Outbound](./application/rds_integration/README.md)
+4. [HTTPS Inbound](./application/https_web_server/README.md)
+5. [SQS Queue Integration](./application/dotnet_sqs_integration/README.md)
 
 ## Architecture
 
@@ -69,7 +69,10 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
    ```bash
    export CDK_DEPLOY_REGION=us-east-1
    export CDK_DEPLOY_ACCOUNT=$(aws sts get-caller-identity | jq -r '.Account')
+   export CDK_APPLICATION_TYPE=eth1
+   export CDK_PREFIX=dev
    ```
+   You can set the ```CDK_PREFIX``` variable as per your preference.
 
 5. Trigger the `kmstool_enclave_cli` build:
    ```bash
@@ -78,7 +81,7 @@ workshop [Activating the virtualenv](https://cdkworkshop.com/30-python/20-create
 
 6. Deploy the example code with the CDK CLI:
     ```bash
-    cdk deploy devNitroWalletEth
+    cdk deploy ${CDK_PREFIX}NitroWalletEth
     ```
 
 ## KMS Key Policy
