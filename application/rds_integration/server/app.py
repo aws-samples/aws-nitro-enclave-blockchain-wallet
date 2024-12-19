@@ -54,29 +54,51 @@ def get_encrypted_key(secret_id):
     return encrypted_key["SecretString"]
 
 
-def get_aws_session_token():
+def get_imds_token():
     http_ec2_client = client.HTTPConnection("169.254.169.254")
-    http_ec2_client.request("GET", "/latest/meta-data/iam/security-credentials/")
-    r = http_ec2_client.getresponse()
-
-    instance_profile_name = r.read().decode()
-
-    http_ec2_client = client.HTTPConnection("169.254.169.254")
-    http_ec2_client.request(
-        "GET",
-        "/latest/meta-data/iam/security-credentials/{}".format(instance_profile_name),
-    )
-    r = http_ec2_client.getresponse()
-
-    response = json.loads(r.read())
-
-    credential = {
-        "access_key_id": response["AccessKeyId"],
-        "secret_access_key": response["SecretAccessKey"],
-        "token": response["Token"],
+    headers = {
+        "X-aws-ec2-metadata-token-ttl-seconds": "21600"  # Token valid for 6 hours
     }
+    http_ec2_client.request("PUT", "/latest/api/token", headers=headers)
+    token_response = http_ec2_client.getresponse()
+    return token_response.read().decode()
 
-    return credential
+
+def get_aws_session_token():
+    try:
+        token = get_imds_token()
+
+        http_ec2_client = client.HTTPConnection("169.254.169.254")
+        headers = {"X-aws-ec2-metadata-token": token}
+
+        # Get instance profile name
+        http_ec2_client.request(
+            "GET",
+            "/latest/meta-data/iam/security-credentials/",
+            headers=headers
+        )
+        r = http_ec2_client.getresponse()
+        instance_profile_name = r.read().decode()
+
+        # Get credentials
+        http_ec2_client.request(
+            "GET",
+            f"/latest/meta-data/iam/security-credentials/{instance_profile_name}",
+            headers=headers
+        )
+        r = http_ec2_client.getresponse()
+        response = json.loads(r.read())
+        return {
+            "access_key_id": response["AccessKeyId"],
+            "secret_access_key": response["SecretAccessKey"],
+            "token": response["Token"],
+        }
+
+    except Exception as e:
+        raise Exception(f"Failed to retrieve instance credentials: {str(e)}")
+    finally:
+        if 'http_ec2_client' in locals():
+            http_ec2_client.close()
 
 
 def call_enclave(cid, port, enclave_payload):

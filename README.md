@@ -218,6 +218,27 @@ cost. This command removes all resources in this stack provisioned by the CDK:
 cdk destroy
 ```
 
+## Troubleshooting
+
+**Docker Image Push/Pull Error**
+* On `building` instance during `cdk deploy` step:
+```shell
+devNitroWalletEth: fail: docker push 012345678910.dkr.ecr.us-east-1.amazonaws.com/cdk-hnb659fds-container-assets-012345678910-us-east-1:ab3fe... exited with error code 1: failed commit on ref "manifest-sha256:7141...": unexpected status from PUT request to https://012345678910.dkr.ecr.us-east-1.amazonaws.com/v2/cdk-hnb659fds-container-assets-012345678910-us-east-1/manifests/ab3fe...: 400 Bad Request
+Failed to publish asset ab3fe...:012345678910-us-east-1
+```
+
+* On EC2 instance pulling docker container
+```shell
+ab3fe...: Pulling from cdk-hnb659fds-container-assets-012345678910-us-east-1
+unsupported media type application/vnd.in-toto+json
+```
+
+**Solution**
+* Issue might be related building and publishing docker containers from an `arm` based instances such as Apple Silicon, requiring docker `buildx` [issue](https://github.com/aws/aws-cdk/issues/30258)
+* Cleanup images from local docker repository (`docker rmi ...`) and from Amazon Elastic Container Registry (ECR) e.g. via AWS console
+* Set environment variable in terminal session (`export BUILDX_NO_DEFAULT_ATTESTATIONS=1`) or specify it during cdk deployment  (`BUILDX_NO_DEFAULT_ATTESTATIONS=1 cdk deploy`)
+
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.

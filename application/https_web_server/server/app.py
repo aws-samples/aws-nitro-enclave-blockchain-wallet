@@ -8,6 +8,7 @@ import logging
 import os
 import errno
 
+
 def server(local_port, remote_cid, remote_port):
     try:
         dock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
