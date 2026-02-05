@@ -20,9 +20,21 @@ rm -rf "${KMS_FOLDER}/aws-nitro-enclaves-sdk-c"
 cd ${KMS_FOLDER}
 git clone --depth 1 --branch ${NITRO_ENCLAVE_CLI_VERSION} https://github.com/aws/aws-nitro-enclaves-sdk-c.git
 
-# for corporate networks disable GOPROXY
+# Patch Dockerfile to:
+# 1. Add GOPROXY=direct for corporate networks
+# 2. Update Rust before building nsm-api (wit-bindgen requires Rust 2024 edition)
 cd ./aws-nitro-enclaves-sdk-c/containers
-awk 'NR==1{print; print "ARG GOPROXY=direct"} NR!=1' Dockerfile.al2 >Dockerfile.al2_new
+
+awk '
+NR==1 {print; print "ARG GOPROXY=direct"; next}
+/^RUN git clone --depth 1 -b v0.4.0 https:\/\/github.com\/aws\/aws-nitro-enclaves-nsm-api.git/ {
+    print "RUN source $HOME/.cargo/env && rustup install 1.82.0 && rustup default 1.82.0"
+    print
+    next
+}
+{print}
+' Dockerfile.al2 > Dockerfile.al2_new
+
 cd ../../
 
 cd ${KMSTOOL_FOLDER}

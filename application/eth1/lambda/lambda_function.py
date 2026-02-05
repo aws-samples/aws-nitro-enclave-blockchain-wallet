@@ -68,6 +68,7 @@ def lambda_handler(event, context):
         _logger.fatal("request needs to define operation")
 
     if operation == "set_key":
+        # DEPRECATED: Use generate_key instead for secure key generation
         key_plaintext = event.get("eth_key")
 
         try:
@@ -92,6 +93,57 @@ def lambda_handler(event, context):
             raise Exception("exception happened updating secret: {}".format(e))
 
         return response
+
+    elif operation == "generate_key":
+        # Secure key generation - key is created inside the enclave
+        # and never exists in plaintext outside of it
+        secret_name = event.get("secret_name")
+        if not secret_name:
+            raise Exception("generate_key requires secret_name")
+
+        https_nitro_client = client.HTTPSConnection(
+            "{}:{}".format(nitro_instance_private_dns, 443), context=ssl_context
+        )
+
+        try:
+            https_nitro_client.request(
+                "POST",
+                "/generate_key",
+                body=json.dumps({"key_id": key_id}),
+            )
+            response = https_nitro_client.getresponse()
+        except Exception as e:
+            raise Exception(
+                "exception happened calling Nitro Enclave for key generation: {}".format(e)
+            )
+
+        response_raw = response.read()
+        response_parsed = json.loads(response_raw)
+
+        if "error" in response_parsed:
+            raise Exception("Enclave error: {}".format(response_parsed["error"]))
+
+        # Store the encrypted key in Secrets Manager
+        encrypted_key = response_parsed["encrypted_key"]
+        address = response_parsed["address"]
+
+        try:
+            client_secrets_manager.create_secret(
+                Name=secret_name,
+                SecretString=encrypted_key,
+                Description=f"Encrypted Ethereum key for {address}",
+            )
+        except client_secrets_manager.exceptions.ResourceExistsException:
+            # Update if exists
+            client_secrets_manager.update_secret(
+                SecretId=secret_name,
+                SecretString=encrypted_key,
+            )
+
+        return {
+            "address": address,
+            "secret_name": secret_name,
+        }
 
     elif operation == "get_key":
         try:

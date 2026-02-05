@@ -203,5 +203,6 @@ cd /etc/pki/tls/certs
 ./make-dummy-cert localhost.crt
 
 # docker over system process manager
-docker run -d --restart unless-stopped --security-opt seccomp=unconfined --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
+region=$( curl -s -H "X-aws-ec2-metadata-token: $(curl -s -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600')" http://169.254.169.254/latest/meta-data/placement/region )
+docker run -d --restart unless-stopped --security-opt seccomp=unconfined --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 -e REGION=$region ${__SIGNING_SERVER_IMAGE_URI__}
 --//--

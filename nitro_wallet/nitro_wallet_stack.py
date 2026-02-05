@@ -38,7 +38,6 @@ class NitroWalletStack(Stack):
             "EthereumSigningServerImage",
             directory="./application/{}/server".format(application_type),
             platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
         )
 
         signing_enclave_image = aws_ecr_assets.DockerImageAsset(
@@ -46,7 +45,6 @@ class NitroWalletStack(Stack):
             "EthereumSigningEnclaveImage",
             directory="./application/{}/enclave".format(application_type),
             platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
         )
 
         vpc = aws_ec2.Vpc(
@@ -167,6 +165,18 @@ class NitroWalletStack(Stack):
         signing_server_image.repository.grant_pull(role)
         encrypted_key.grant_read(role)
 
+        # Allow reading secrets matching the naming convention: {chain}_{userid}_key_{last4}
+        # Example: sepolia_alice_key_fc26, mainnet_bob_key_a1b2
+        # This enables the signing server to read encrypted keys stored in Secrets Manager
+        role.add_to_policy(
+            aws_iam.PolicyStatement(
+                actions=["secretsmanager:GetSecretValue"],
+                resources=[
+                    f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:*_key_*",
+                ],
+            )
+        )
+
         nitro_launch_template = aws_ec2.LaunchTemplate(
             self,
             "NitroEC2LauchTemplate",
@@ -247,6 +257,20 @@ class NitroWalletStack(Stack):
         if params.get("deployment") == "dev":
             encrypted_key.grant_read(invoke_lambda)
 
+        # Allow Lambda to create/update secrets for generate_key operation
+        # Secrets must follow naming convention: {chain}_{userid}_key_{last4}
+        invoke_lambda.add_to_role_policy(
+            aws_iam.PolicyStatement(
+                actions=[
+                    "secretsmanager:CreateSecret",
+                    "secretsmanager:UpdateSecret",
+                ],
+                resources=[
+                    f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:*_key_*",
+                ],
+            )
+        )
+
         CfnOutput(
             self,
             "EC2 Instance Role ARN",
@@ -270,6 +294,13 @@ class NitroWalletStack(Stack):
 
         CfnOutput(
             self, "KMS Key ID", value=encryption_key.key_id, description="KMS Key ID"
+        )
+
+        CfnOutput(
+            self,
+            "NLB DNS",
+            value=nitro_nlb.load_balancer_dns_name,
+            description="Network Load Balancer DNS Name",
         )
 
         NagSuppressions.add_resource_suppressions(

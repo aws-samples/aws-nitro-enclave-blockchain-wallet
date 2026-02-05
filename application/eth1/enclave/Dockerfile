@@ -13,7 +13,7 @@ COPY ./kms/libnsm.so /usr/lib64/
 COPY requirements.txt ./
 RUN pip3 install -r /app/requirements.txt
 
-ARG REGION_ARG
+ARG REGION_ARG=us-east-1
 ENV REGION=$REGION_ARG
 
 COPY server.py ./
