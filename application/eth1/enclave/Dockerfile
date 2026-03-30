@@ -1,9 +1,9 @@
 #  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #  SPDX-License-Identifier: MIT-0
 
-FROM amazonlinux:2
+FROM amazonlinux:2023
 
-RUN yum install gcc python3 python3-devel net-tools -y
+RUN dnf install gcc python3 python3-devel python3-pip net-tools -y
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ COPY ./kms/libnsm.so /usr/lib64/
 COPY requirements.txt ./
 RUN pip3 install -r /app/requirements.txt
 
-ARG REGION_ARG
+ARG REGION_ARG=us-east-1
 ENV REGION=$REGION_ARG
 
 COPY server.py ./

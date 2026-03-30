@@ -10,8 +10,20 @@ from http import client
 
 import boto3
 
-ssl_context = ssl.SSLContext()
-ssl_context.verify_mode = ssl.CERT_NONE
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ca_cert_path = os.getenv("NITRO_CA_CERT_PATH")
+skip_tls_verify = os.getenv("NITRO_SKIP_TLS_VERIFY", "").lower() in ("true", "1")
+if ca_cert_path:
+    ssl_context.load_verify_locations(ca_cert_path)
+    ssl_context.verify_mode = ssl.CERT_REQUIRED
+elif skip_tls_verify:
+    # Explicitly opted-in to skip verification (dev/test only)
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+else:
+    # Default: use system CA store with full verification
+    ssl_context.load_default_certs()
+    ssl_context.verify_mode = ssl.CERT_REQUIRED
 
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
@@ -59,13 +71,13 @@ def lambda_handler(event, context):
     key_id = os.getenv("KEY_ARN")
 
     if not (nitro_instance_private_dns and secret_id and key_id):
-        _logger.fatal(
+        raise ValueError(
             "NITRO_INSTANCE_PRIVATE_DNS, SECRET_ARN and KEY_ARN environment variables need to be set"
         )
 
     operation = event.get("operation")
     if not operation:
-        _logger.fatal("request needs to define operation")
+        raise ValueError("request needs to define operation")
 
     if operation == "set_key":
         key_plaintext = event.get("eth_key")
@@ -102,8 +114,6 @@ def lambda_handler(event, context):
             )
 
         return response["SecretString"]
-
-    # sign_transaction
 
     elif operation == "sign_transaction":
         transaction_payload = event.get("transaction_payload")
@@ -143,4 +153,4 @@ def lambda_handler(event, context):
         return response_parsed
 
     else:
-        _logger.fatal("operation: {} not supported right now".format(operation))
+        raise ValueError("operation: {} not supported right now".format(operation))
