@@ -6,6 +6,7 @@ from aws_cdk import (
     Fn,
     Duration,
     CfnOutput,
+    BundlingOptions,
     aws_ec2,
     aws_iam,
     aws_ecr_assets,
@@ -220,11 +221,19 @@ class NitroWalletStack(Stack):
             ],
         )
 
+        lambda_path = "application/{}/lambda".format(params["application_type"])
         invoke_lambda = aws_lambda.Function(
             self,
             "NitroInvokeLambda",
             code=aws_lambda.Code.from_asset(
-                path="application/{}/lambda".format(params["application_type"])
+                path=lambda_path,
+                bundling=BundlingOptions(
+                    image=aws_lambda.Runtime.PYTHON_3_11.bundling_image,
+                    command=[
+                        "bash", "-c",
+                        "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output",
+                    ],
+                ),
             ),
             handler="lambda_function.lambda_handler",
             runtime=aws_lambda.Runtime.PYTHON_3_11,
@@ -247,6 +256,16 @@ class NitroWalletStack(Stack):
         # if productive case, lambda is just allowed to set the secret key value
         if params.get("deployment") == "dev":
             encrypted_key.grant_read(invoke_lambda)
+
+        # Allow Lambda to create/update secrets for generate_key operation
+        invoke_lambda.add_to_role_policy(
+            aws_iam.PolicyStatement(
+                actions=["secretsmanager:CreateSecret", "secretsmanager:UpdateSecret"],
+                resources=[
+                    f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:nitro-wallet/*"
+                ],
+            )
+        )
 
         CfnOutput(
             self,
