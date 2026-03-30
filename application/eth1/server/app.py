@@ -46,10 +46,38 @@ class S(BaseHTTPRequestHandler):
 
         payload = json.loads(post_data.decode("utf-8"))
 
-        if self.path == "/sign_transaction" or self.path == "/":
+        if self.path == "/sign_hash":
+            self._handle_sign_hash(payload)
+        elif self.path == "/sign_transaction" or self.path == "/":
             self._handle_sign_transaction(payload)
+        elif self.path == "/generate_key":
+            self._handle_generate_key(payload)
         else:
             self._send_json_response({"error": "Unknown endpoint"}, 404)
+
+    def _handle_sign_hash(self, payload):
+        """Handle raw hash signing requests."""
+        if not payload.get("hash"):
+            self._send_json_response({"error": "Missing 'hash' field"}, 400)
+            return
+
+        if not payload.get("secret_id"):
+            self._send_json_response({"error": "Missing 'secret_id' field"}, 400)
+            return
+
+        hash_clean = payload["hash"].replace("0x", "")
+        if len(hash_clean) != 64:
+            self._send_json_response({"error": "Hash must be 32 bytes (64 hex chars)"}, 400)
+            return
+
+        enclave_payload = {
+            "operation": "sign_hash",
+            "hash": payload["hash"],
+            "secret_id": payload["secret_id"],
+        }
+
+        result = call_enclave(16, 5000, enclave_payload)
+        self._send_json_response(result)
 
     def _handle_sign_transaction(self, payload):
         """Handle full transaction signing requests."""
@@ -57,7 +85,28 @@ class S(BaseHTTPRequestHandler):
             self._send_json_response({"error": "transaction_payload or secret_id are missing"}, 400)
             return
 
-        result = call_enclave(16, 5000, payload)
+        enclave_payload = {
+            "operation": "sign_transaction",
+            "transaction_payload": payload["transaction_payload"],
+            "secret_id": payload["secret_id"],
+        }
+
+        result = call_enclave(16, 5000, enclave_payload)
+        self._send_json_response(result)
+
+    def _handle_generate_key(self, payload):
+        """Handle key generation requests - key is generated inside enclave."""
+        key_id = payload.get("key_id")
+        if not key_id:
+            self._send_json_response({"error": "Missing 'key_id' field"}, 400)
+            return
+
+        enclave_payload = {
+            "operation": "generate_key",
+            "key_id": key_id,
+        }
+
+        result = call_enclave_generate(16, 5000, enclave_payload)
         self._send_json_response(result)
 
 
@@ -123,8 +172,25 @@ def call_enclave(cid, port, enclave_payload):
 
     payload = {
         "credential": get_aws_session_token(),
-        "transaction_payload": enclave_payload["transaction_payload"],
         "encrypted_key": encrypted_key,
+        "operation": enclave_payload.get("operation", "sign_transaction"),
+        "region": AWS_REGION,
+    }
+
+    if enclave_payload.get("transaction_payload"):
+        payload["transaction_payload"] = enclave_payload["transaction_payload"]
+    if enclave_payload.get("hash"):
+        payload["hash"] = enclave_payload["hash"]
+
+    return _send_to_enclave(cid, port, payload)
+
+
+def call_enclave_generate(cid, port, enclave_payload):
+    """Call enclave for key generation - no existing secret needed."""
+    payload = {
+        "credential": get_aws_session_token(),
+        "operation": "generate_key",
+        "key_id": enclave_payload["key_id"],
         "region": AWS_REGION,
     }
 
