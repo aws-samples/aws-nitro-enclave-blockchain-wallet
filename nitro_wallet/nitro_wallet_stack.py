@@ -38,7 +38,6 @@ class NitroWalletStack(Stack):
             "EthereumSigningServerImage",
             directory="./application/{}/server".format(application_type),
             platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
         )
 
         signing_enclave_image = aws_ecr_assets.DockerImageAsset(
@@ -46,7 +45,6 @@ class NitroWalletStack(Stack):
             "EthereumSigningEnclaveImage",
             directory="./application/{}/enclave".format(application_type),
             platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
         )
 
         vpc = aws_ec2.Vpc(
@@ -124,8 +122,8 @@ class NitroWalletStack(Stack):
         # all members of the sg can access each others https ports (443)
         nitro_instance_sg.add_ingress_rule(nitro_instance_sg, aws_ec2.Port.tcp(443))
 
-        # AMI
-        amzn_linux = aws_ec2.MachineImage.latest_amazon_linux2()
+        # AMI - Amazon Linux 2023 for Nitro Enclave support
+        amzn_linux = aws_ec2.MachineImage.latest_amazon_linux2023()
 
         # Instance Role and SSM Managed Policy
         role = aws_iam.Role(
@@ -138,6 +136,8 @@ class NitroWalletStack(Stack):
                 "service-role/AmazonEC2RoleforSSM"
             )
         )
+
+        encryption_key.grant(role, "kms:Decrypt", "kms:GenerateDataKey")
 
         block_device = aws_ec2.BlockDevice(
             device_name="/dev/xvda",
@@ -155,6 +155,7 @@ class NitroWalletStack(Stack):
 
         mappings = {
             "__DEV_MODE__": params["deployment"],
+            "__DEBUG_FLAG__": "--debug-mode" if params["deployment"] == "dev" else "",
             "__SIGNING_SERVER_IMAGE_URI__": signing_server_image.image_uri,
             "__SIGNING_ENCLAVE_IMAGE_URI__": signing_enclave_image.image_uri,
             "__REGION__": self.region,
@@ -270,6 +271,13 @@ class NitroWalletStack(Stack):
 
         CfnOutput(
             self, "KMS Key ID", value=encryption_key.key_id, description="KMS Key ID"
+        )
+
+        CfnOutput(
+            self,
+            "NLB DNS Name",
+            value=nitro_nlb.load_balancer_dns_name,
+            description="NLB DNS Name",
         )
 
         NagSuppressions.add_resource_suppressions(
