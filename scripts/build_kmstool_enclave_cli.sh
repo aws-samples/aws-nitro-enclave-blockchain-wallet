@@ -5,7 +5,7 @@
 set +x
 set -e
 
-NITRO_ENCLAVE_CLI_VERSION="v0.4.3"
+NITRO_ENCLAVE_CLI_VERSION="v0.4.5"
 KMS_FOLDER="./application/eth1/enclave/kms"
 KMSTOOL_FOLDER="./aws-nitro-enclaves-sdk-c/bin/kmstool-enclave-cli"
 TARGET_PLATFORM="linux/amd64"
@@ -34,7 +34,6 @@ chmod +x build.sh
 
 cp ./kmstool_enclave_cli ../../../kmstool_enclave_cli
 cp ./libnsm.so ../../../libnsm.so
-
 cd -
 
 rm -rf ./aws-nitro-enclaves-sdk-c
