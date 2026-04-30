@@ -231,7 +231,11 @@ class NitroWalletStack(Stack):
                     image=aws_lambda.Runtime.PYTHON_3_11.bundling_image,
                     command=[
                         "bash", "-c",
-                        "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output",
+                        "pip install -r requirements.txt "
+                        "--platform manylinux2014_x86_64 "
+                        "--implementation cp --python-version 3.11 "
+                        "--only-binary=:all: --upgrade "
+                        "-t /asset-output && cp -ru . /asset-output",
                     ],
                 ),
             ),
@@ -244,6 +248,9 @@ class NitroWalletStack(Stack):
                 "NITRO_INSTANCE_PRIVATE_DNS": nitro_nlb.load_balancer_dns_name,
                 "SECRET_ARN": encrypted_key.secret_full_arn,
                 "KEY_ARN": encryption_key.key_arn,
+                # Skip TLS verification: enclave uses a self-signed cert
+                # generated at instance boot. Traffic stays inside the VPC.
+                "NITRO_SKIP_TLS_VERIFY": "true",
             },
             vpc=vpc,
             vpc_subnets=aws_ec2.SubnetSelection(

@@ -181,7 +181,7 @@ def main():
                 # All other operations need to decrypt an existing key first
                 key_encrypted = payload_json["encrypted_key"]
                 key_b64 = kms_decrypt(credential, key_encrypted, region)
-                key_bytes = base64.standard_b64decode(key_b64)
+                key_bytes = base64.standard_b64decode(key_b64).decode()
 
                 try:
                     if operation == "sign_hash":
