@@ -6,6 +6,7 @@ from aws_cdk import (
     Fn,
     Duration,
     CfnOutput,
+    BundlingOptions,
     aws_ec2,
     aws_iam,
     aws_ecr_assets,
@@ -38,7 +39,6 @@ class NitroWalletStack(Stack):
             "EthereumSigningServerImage",
             directory="./application/{}/server".format(application_type),
             platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
         )
 
         signing_enclave_image = aws_ecr_assets.DockerImageAsset(
@@ -46,7 +46,6 @@ class NitroWalletStack(Stack):
             "EthereumSigningEnclaveImage",
             directory="./application/{}/enclave".format(application_type),
             platform=aws_ecr_assets.Platform.LINUX_AMD64,
-            build_args={"REGION_ARG": self.region},
         )
 
         vpc = aws_ec2.Vpc(
@@ -124,8 +123,8 @@ class NitroWalletStack(Stack):
         # all members of the sg can access each others https ports (443)
         nitro_instance_sg.add_ingress_rule(nitro_instance_sg, aws_ec2.Port.tcp(443))
 
-        # AMI
-        amzn_linux = aws_ec2.MachineImage.latest_amazon_linux2()
+        # AMI - Amazon Linux 2023 for Nitro Enclave support
+        amzn_linux = aws_ec2.MachineImage.latest_amazon_linux2023()
 
         # Instance Role and SSM Managed Policy
         role = aws_iam.Role(
@@ -138,6 +137,8 @@ class NitroWalletStack(Stack):
                 "service-role/AmazonEC2RoleforSSM"
             )
         )
+
+        encryption_key.grant(role, "kms:Decrypt", "kms:GenerateDataKey")
 
         block_device = aws_ec2.BlockDevice(
             device_name="/dev/xvda",
@@ -155,6 +156,7 @@ class NitroWalletStack(Stack):
 
         mappings = {
             "__DEV_MODE__": params["deployment"],
+            "__DEBUG_FLAG__": "--debug-mode" if params["deployment"] == "dev" else "",
             "__SIGNING_SERVER_IMAGE_URI__": signing_server_image.image_uri,
             "__SIGNING_ENCLAVE_IMAGE_URI__": signing_enclave_image.image_uri,
             "__REGION__": self.region,
@@ -219,11 +221,23 @@ class NitroWalletStack(Stack):
             ],
         )
 
+        lambda_path = "application/{}/lambda".format(params["application_type"])
         invoke_lambda = aws_lambda.Function(
             self,
             "NitroInvokeLambda",
             code=aws_lambda.Code.from_asset(
-                path="application/{}/lambda".format(params["application_type"])
+                path=lambda_path,
+                bundling=BundlingOptions(
+                    image=aws_lambda.Runtime.PYTHON_3_11.bundling_image,
+                    command=[
+                        "bash", "-c",
+                        "pip install -r requirements.txt "
+                        "--platform manylinux2014_x86_64 "
+                        "--implementation cp --python-version 3.11 "
+                        "--only-binary=:all: --upgrade "
+                        "-t /asset-output && cp -ru . /asset-output",
+                    ],
+                ),
             ),
             handler="lambda_function.lambda_handler",
             runtime=aws_lambda.Runtime.PYTHON_3_11,
@@ -234,6 +248,9 @@ class NitroWalletStack(Stack):
                 "NITRO_INSTANCE_PRIVATE_DNS": nitro_nlb.load_balancer_dns_name,
                 "SECRET_ARN": encrypted_key.secret_full_arn,
                 "KEY_ARN": encryption_key.key_arn,
+                # Skip TLS verification: enclave uses a self-signed cert
+                # generated at instance boot. Traffic stays inside the VPC.
+                "NITRO_SKIP_TLS_VERIFY": "true",
             },
             vpc=vpc,
             vpc_subnets=aws_ec2.SubnetSelection(
@@ -246,6 +263,16 @@ class NitroWalletStack(Stack):
         # if productive case, lambda is just allowed to set the secret key value
         if params.get("deployment") == "dev":
             encrypted_key.grant_read(invoke_lambda)
+
+        # Allow Lambda to create/update secrets for generate_key operation
+        invoke_lambda.add_to_role_policy(
+            aws_iam.PolicyStatement(
+                actions=["secretsmanager:CreateSecret", "secretsmanager:UpdateSecret"],
+                resources=[
+                    f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:nitro-wallet/*"
+                ],
+            )
+        )
 
         CfnOutput(
             self,
@@ -270,6 +297,13 @@ class NitroWalletStack(Stack):
 
         CfnOutput(
             self, "KMS Key ID", value=encryption_key.key_id, description="KMS Key ID"
+        )
+
+        CfnOutput(
+            self,
+            "NLB DNS Name",
+            value=nitro_nlb.load_balancer_dns_name,
+            description="NLB DNS Name",
         )
 
         NagSuppressions.add_resource_suppressions(

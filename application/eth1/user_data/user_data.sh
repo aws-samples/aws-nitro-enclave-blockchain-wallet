@@ -8,13 +8,12 @@ Content-Transfer-Encoding: 7bit
 Content-Disposition: attachment; filename="cloud-config.txt"
 
 #cloud-config
-bootcmd:
-  - [ amazon-linux-extras, install, aws-nitro-enclaves-cli ]
 packages:
+  - aws-nitro-enclaves-cli
   - aws-nitro-enclaves-cli-devel
+  - docker
   - htop
   - git
-  - mode_ssl
   - jq
 
 --//
@@ -31,11 +30,6 @@ exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&
 
 set -x
 set +e
-
-# if specific operations should be executed in `dev` deployment use section below
-#if [[ ${__DEV_MODE__} == "dev" ]]; then
-#
-#fi
 
 usermod -aG docker ec2-user
 usermod -aG ne ec2-user
@@ -93,11 +87,6 @@ fi
 
 if [[ ! -f /etc/systemd/system/nitro-signing-server.service ]]; then
 
-  debug_flag=""
-  if [[ ${__DEV_MODE__} == "dev" ]]; then
-    debug_flag="--debug-mode"
-  fi
-
   cat <<'EOF' >>/etc/systemd/system/nitro-signing-server.service
 [Unit]
 Description=Nitro Enclaves Signing Server
@@ -110,7 +99,6 @@ After=nitro-enclaves-allocator.service
 Type=simple
 ExecStart=/home/ec2-user/app/watchdog.py
 Restart=always
-#RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
@@ -151,8 +139,6 @@ def nitro_cli_describe_call(name=None):
     return True
 
 
-# https://github.com/torfsen/python-systemd-tutorial
-# todo debug flag - mention that it has been turned off
 def nitro_cli_run_call():
     subprocess_args = [
         "/bin/nitro-cli",
@@ -161,7 +147,7 @@ def nitro_cli_run_call():
         "--memory", "4320",
         "--eif-path", "/home/ec2-user/app/server/signing_server.eif",
         "--enclave-cid", "16"
-    ]
+    ] + [x for x in ["${__DEBUG_FLAG__}"] if x]
 
     print("enclave args: {}".format(subprocess_args))
 
@@ -170,7 +156,6 @@ def nitro_cli_run_call():
         stdout=subprocess.PIPE
     )
 
-    # returns b64 encoded plaintext
     nitro_cli_response = proc.communicate()[0].decode()
 
     return nitro_cli_response
@@ -182,7 +167,6 @@ def main():
     nitro_cli_run_call()
 
     while nitro_cli_describe_call("signing_server"):
-        # print("nitro enclave up and running")
         time.sleep(5)
 
 
@@ -199,8 +183,11 @@ fi
 systemctl enable --now nitro-signing-server.service
 
 # create self signed cert for http server
-cd /etc/pki/tls/certs
-./make-dummy-cert localhost.crt
+openssl req -x509 -nodes -days 3650 -newkey rsa:4096 \
+  -keyout /etc/pki/tls/certs/localhost.key \
+  -out /etc/pki/tls/certs/localhost.crt \
+  -subj "/CN=localhost"
+cat /etc/pki/tls/certs/localhost.key >> /etc/pki/tls/certs/localhost.crt
 
 # docker over system process manager
 docker run -d --restart unless-stopped --security-opt seccomp=unconfined --name http_server -v /etc/pki/tls/certs/:/etc/pki/tls/certs/ -p 443:443 ${__SIGNING_SERVER_IMAGE_URI__}
